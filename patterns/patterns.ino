@@ -1,8 +1,8 @@
 #include "FastLED.h"
 
-#define DATA_PIN    3        // what output is connected to the LEDs
+#define DATA_PIN    12        // what output is connected to the LEDs
 #define COLOR_ORDER GRB
-#define NUM_LEDS    60
+#define NUM_LEDS    30
 #define LED_TYPE    WS2812B
 
 // array used to display patterns
@@ -22,7 +22,7 @@ void setup() {
 
 void loop() 
 {
-  spinning_rainbow();
+  scale(CRGB(30, 190, 190));
 }
 
 void spinning_rainbow() {
@@ -66,11 +66,10 @@ void dull_pulse_yellow() {
 }
 
 void scale(CRGB color) {
-  int maxval = 100;
   for (int i = 0; i < NUM_LEDS; i++) {
     double fraction = double(i) / NUM_LEDS;
     leds[i] = color;
-    color %= 128 * fraction; 
+    leds[i] %= 128 * fraction; 
   }
   FastLED.show();
 }
