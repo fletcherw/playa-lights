@@ -23,39 +23,37 @@ SoftwareSerial mySerial(10, 9); // RX, TX
 */
 
 
+
 void setup()
 {
+  pinMode(13, OUTPUT);
+  digitalWrite(13, LOW);
+  
   Serial.begin(9600);
-  Serial.println("Starting config");
-  mySerial.begin(BLUETOOTH_SPEED);
+  mySerial.begin(9600);
   delay(1000);
-
-  // Should respond with OK
-  mySerial.print("AT");
-  waitForResponse();
-
-  // Should respond with its version
-  mySerial.print("AT+VERSION");
-  waitForResponse();
-
-  // Set pin to 2468 
-  mySerial.print("AT+PIN2468");
-  waitForResponse();
-
-  // Set the name to ROBOT_NAME
-  mySerial.print("AT+NAME");
-  mySerial.print("FletchLight");
-  waitForResponse();
-
-  Serial.println("Done!");
 }
 
 void waitForResponse() {
     delay(1000);
     while (mySerial.available()) {
-      Serial.write(mySerial.read());
+      int code = mySerial.read();
+      Serial.println((char) code);
+      if (code == 'P') {
+        int mode = mySerial.read();
+        Serial.println((char) mode);
+        if (mode == '0') {
+          digitalWrite(13, LOW);
+          Serial.println("Turning off!");
+        }
+        if (mode == '1') {
+          digitalWrite(13, HIGH);
+          Serial.println("Turning on!");
+        }
+      }
     }
-    Serial.write("\n\n");
 }
 
-void loop() {}
+void loop() {
+  waitForResponse();  
+}
