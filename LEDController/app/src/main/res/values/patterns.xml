@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <string-array name="patterns_array">
+    <item>Spinning Rainbow</item>
+    <item>Ping Pong</item>
+  </string-array>
+</resources>
