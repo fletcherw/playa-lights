@@ -33,10 +33,9 @@
 
 ### Communication Protocol
 
-* 1 byte control code (upper/lowercase letter) gives us 52 commands.
+* 1 letter control code (upper/lowercase letter) gives us 52 commands.
 * Depending on control code, various formats for following data.
-* ack code sent after all received transmissions, by both arduino and app.
-* No sending of multiple commands without intervening acks. 
+* All commands encased within '[' and ']', no nesting.
 
 ### LEDs
 
