@@ -6,10 +6,6 @@
 
 * Toggle switch for Bluetooth (Might be redundant with just unplugging)
 * On board switch for physical backup if bluetooth/app/phone fail. (Simple pattern cycle?)
-* Patterns encoded as 'init_[name]' and 'loop_[name]'. Loop function guaranteed to return after one update of LEDs so that arduino can handle bluetooth commands.  
-* Master list of function names with associated function pointers to use for switching modes
-* Reset function to switch off all lights before switching modes 
-* Code to restrict power draw to max permitted by power supply 
 
 ### App
 
