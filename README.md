@@ -13,15 +13,8 @@
 
 ### App
 
-* Power switch
-* Live bluetooth status indicator and reconnect button
-* Dimmer slider
-* Power supply amperage selector
-* Number of LED selector / Daisy chain selector
-  - Allow designing LED hookup pattern in app. (for example, first 20 are jacket, next 49 are grid)
+* LED mode switch (Bike vs. Backpack)
 * Pattern Selector Dropdown
-  - with dynamically updated patterns fetched from arduino at App start.
-    * Maybe cache this.
   - allow input to patterns from phone
     * For example, picking color, speed, etc.
   - For grids, some sort of drawing interface
@@ -34,12 +27,15 @@
 ### Communication Protocol
 
 * 1 letter control code (upper/lowercase letter) gives us 52 commands.
+  - Easily extensible if more commands needed
 * Depending on control code, various formats for following data.
-* All commands encased within '[' and ']', no nesting.
+* Commands are length encoded
 
 ### LEDs
 
 * 150 total LEDs, although possible to buy more
-* Multiple setups, possibly one small grid (5x5 to 8x8 or so)
-* Outputs on ends of strips to allow daisy chaining
+* Setup 1: 24 LEDs on backpack in arch with 3 strips of 5 in fan shape on back
+* Other possible setups
+  - Small grid (5x5 to 8x8 or so)
+  - Wrapped around bike frame
 

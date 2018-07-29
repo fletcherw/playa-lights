@@ -13,6 +13,7 @@ public:
   {}
 
   void blit();
+  int updateInterval();
   
 private:
   CRGB *leds_;

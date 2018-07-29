@@ -1,6 +1,12 @@
 <resources>
-    <string name="app_name">LED Controller</string>
-    <string name="btDown"><span style="color:red;">Down</span></string>
-    <string name="btConnecting">Connecting</string>
-    <string name="btUp">Up</string>
+  <string name="app_name">LED Controller</string>
+  <string name="bluetooth_status">Bluetooth Status:</string>
+  <string name="bluetooth_disconnected">Disconnected</string>
+  <string name="bluetooth_connecting">Connecting</string>
+  <string name="bluetooth_connected">Connected</string>
+  <string name="led_power">LED Power:</string>
+  <string name="bluetooth_connect">Connect</string>
+  <string name="pattern">Pattern:</string>
+  <string name="dim_label">Dim:</string>
+  <string name="dim_percent_default">0%</string>
 </resources>

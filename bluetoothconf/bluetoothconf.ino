@@ -27,7 +27,7 @@ void setup()
 {
   Serial.begin(9600);
   Serial.println("Starting config");
-  mySerial.begin(BLUETOOTH_SPEED);
+  mySerial.begin(9600);
   delay(1000);
 
   // Should respond with OK
@@ -40,6 +40,9 @@ void setup()
 
   // Set pin to 2468 
   mySerial.print("AT+PIN2468");
+  waitForResponse();
+
+  mySerial.print("AT+BAUD4");
   waitForResponse();
 
   // Set the name to ROBOT_NAME

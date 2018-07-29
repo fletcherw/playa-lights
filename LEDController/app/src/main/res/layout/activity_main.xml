@@ -6,53 +6,107 @@
   android:layout_height="match_parent"
   tools:context=".MainActivity">
 
-    <Spinner
-      android:id="@+id/patternSpinner"
-      android:layout_width="350dp"
-      android:layout_height="31dp"
-      android:layout_marginEnd="16dp"
-      android:layout_marginStart="16dp"
-      android:layout_marginTop="16dp"
-      app:layout_constraintEnd_toEndOf="parent"
-      app:layout_constraintStart_toStartOf="parent"
-      app:layout_constraintTop_toBottomOf="@+id/bluetoothButton" />
+  <Spinner
+    android:id="@+id/patternSpinner"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:layout_marginStart="16dp"
+    android:layout_marginTop="16dp"
+    app:layout_constraintStart_toEndOf="@+id/patternLabel"
+    app:layout_constraintTop_toBottomOf="@+id/dimmerLabel" />
 
-    <Switch
-      android:id="@+id/powerSwitch"
-      android:layout_width="wrap_content"
-      android:layout_height="23dp"
-      android:layout_marginStart="8dp"
-      android:checked="false"
-      app:layout_constraintBaseline_toBaselineOf="@+id/bluetoothButton"
-      app:layout_constraintStart_toEndOf="@+id/powerText" />
-
-    <Button
-      android:id="@+id/bluetoothButton"
-      android:layout_width="wrap_content"
-      android:layout_height="wrap_content"
-      android:layout_marginEnd="16dp"
-      android:layout_marginTop="16dp"
-      android:text="Bluetooth"
-      app:layout_constraintEnd_toEndOf="parent"
-      app:layout_constraintTop_toTopOf="parent" />
+  <Switch
+    android:id="@+id/powerSwitch"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:layout_marginStart="16dp"
+    android:checked="false"
+    app:layout_constraintBaseline_toBaselineOf="@+id/powerText"
+    app:layout_constraintStart_toEndOf="@+id/powerText" />
 
     <TextView
       android:id="@+id/powerText"
       android:layout_width="wrap_content"
       android:layout_height="wrap_content"
       android:layout_marginStart="16dp"
-      android:text="Power:"
+      android:layout_marginTop="16dp"
+      android:text="@string/led_power"
       android:textSize="18sp"
-      app:layout_constraintBaseline_toBaselineOf="@+id/powerSwitch"
-      app:layout_constraintStart_toStartOf="parent" />
+      app:layout_constraintStart_toStartOf="parent"
+      app:layout_constraintTop_toBottomOf="@+id/btStatusLabel" />
 
-    <TextView
-      android:id="@+id/btStatusText"
-      android:layout_width="wrap_content"
-      android:layout_height="wrap_content"
-      android:layout_marginEnd="16dp"
-      android:textSize="18sp"
-      app:layout_constraintBaseline_toBaselineOf="@+id/bluetoothButton"
-      app:layout_constraintEnd_toStartOf="@+id/bluetoothButton" />
+  <TextView
+    android:id="@+id/btStatusText"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:layout_marginStart="8dp"
+    android:text="@string/bluetooth_disconnected"
+    android:textSize="18sp"
+    app:layout_constraintBaseline_toBaselineOf="@+id/btReconnectButton"
+    app:layout_constraintStart_toEndOf="@+id/btStatusLabel" />
+
+  <TextView
+    android:id="@+id/btStatusLabel"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:layout_marginStart="16dp"
+    android:text="@string/bluetooth_status"
+    android:textSize="18sp"
+    app:layout_constraintBaseline_toBaselineOf="@+id/btStatusText"
+    app:layout_constraintStart_toStartOf="parent" />
+
+  <Button
+    android:id="@+id/btReconnectButton"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:layout_marginEnd="16dp"
+    android:layout_marginTop="16dp"
+    android:text="@string/bluetooth_connect"
+    app:layout_constraintEnd_toEndOf="parent"
+    app:layout_constraintTop_toTopOf="parent" />
+
+  <TextView
+    android:id="@+id/patternLabel"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:layout_marginStart="16dp"
+    android:layout_marginTop="16dp"
+    android:text="@string/pattern"
+    android:textSize="18sp"
+    app:layout_constraintStart_toStartOf="parent"
+    app:layout_constraintTop_toBottomOf="@+id/dimmerLabel" />
+
+  <SeekBar
+    android:id="@+id/dimmerBar"
+    android:layout_width="0dp"
+    android:layout_height="0dp"
+    android:layout_marginEnd="16dp"
+    android:layout_marginStart="16dp"
+    app:layout_constraintBottom_toBottomOf="@+id/dimmerLabel"
+    app:layout_constraintEnd_toStartOf="@+id/dimmerPercentText"
+    app:layout_constraintStart_toEndOf="@+id/dimmerLabel"
+    app:layout_constraintTop_toTopOf="@+id/dimmerLabel"
+    app:layout_constraintVertical_bias="0.0" />
+
+  <TextView
+    android:id="@+id/dimmerLabel"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:layout_marginStart="16dp"
+    android:layout_marginTop="16dp"
+    android:text="@string/dim_label"
+    android:textSize="18sp"
+    app:layout_constraintStart_toStartOf="parent"
+    app:layout_constraintTop_toBottomOf="@+id/powerText" />
+
+  <TextView
+    android:id="@+id/dimmerPercentText"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:layout_marginEnd="16dp"
+    android:text="@string/dim_percent_default"
+    android:textSize="18sp"
+    app:layout_constraintBaseline_toBaselineOf="@+id/dimmerLabel"
+    app:layout_constraintEnd_toEndOf="parent" />
 
 </android.support.constraint.ConstraintLayout>

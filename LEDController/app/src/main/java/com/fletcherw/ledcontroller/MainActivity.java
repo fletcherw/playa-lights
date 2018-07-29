@@ -1,5 +1,6 @@
 package com.fletcherw.ledcontroller;
 
+import android.annotation.SuppressLint;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothSocket;
@@ -7,49 +8,70 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.graphics.Color;
+import android.icu.util.Output;
 import android.os.AsyncTask;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
+import android.widget.Button;
 import android.widget.CompoundButton;
+import android.widget.SeekBar;
 import android.widget.Spinner;
 import android.widget.Switch;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import java.io.IOException;
 import java.io.OutputStream;
 import java.lang.ref.WeakReference;
+import java.text.NumberFormat;
+import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
 
+import static java.lang.StrictMath.abs;
+
 public class MainActivity
     extends AppCompatActivity
-    implements AdapterView.OnItemSelectedListener, CompoundButton.OnCheckedChangeListener
+    implements
+    AdapterView.OnItemSelectedListener,
+    CompoundButton.OnCheckedChangeListener,
+    View.OnClickListener,
+    SeekBar.OnSeekBarChangeListener
 {
+  enum BTState {
+    DISCONNECTED,
+    CONNECTING,
+    CONNECTED
+  }
+
   private BroadcastReceiver btBroadcastReceiver;
 
   private BluetoothSocket btSocket;
   private OutputStream btOut;
 
-  private boolean btConnected;
+  private BTState btState;
   private int selectedPattern;
 
   private Spinner patternSpinner;
   private Switch powerSwitch;
   private TextView btStatusText;
+  private Button btReconnectButton;
+  private SeekBar dimmerBar;
+  private TextView dimmerPercentText;
 
   public MainActivity() {
     btBroadcastReceiver = null;
     btSocket = null;
     btOut = null;
-    btConnected = false;
+    btState = BTState.DISCONNECTED;
 
     selectedPattern = -1;
   }
 
+  @SuppressLint("DefaultLocale")
   @Override
   protected void onCreate(Bundle savedInstanceState) {
     super.onCreate(savedInstanceState);
@@ -72,9 +94,20 @@ public class MainActivity
     powerSwitch = findViewById(R.id.powerSwitch);
     powerSwitch.setOnCheckedChangeListener(this);
 
+    // Dimmer
+    dimmerBar = findViewById(R.id.dimmerBar);
+    dimmerBar.setMax(255);
+    dimmerBar.setOnSeekBarChangeListener(this);
+    dimmerPercentText = findViewById(R.id.dimmerPercentText);
+    // trigger update of percent text label
+    dimmerBar.setProgress(0);
+
     // Bluetooth
     btStatusText = findViewById(R.id.btStatusText);
-    btStatusText.setText(R.string.btDown);
+    btStatusText.setOnClickListener(this);
+    btReconnectButton = findViewById(R.id.btReconnectButton);
+    btReconnectButton.setOnClickListener(this);
+    setBTState(BTState.DISCONNECTED);
 
     IntentFilter filter = new IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED);
     btBroadcastReceiver = new BTBroadcastReceiver(this);
@@ -92,6 +125,27 @@ public class MainActivity
         new BluetoothConnectTask(this, btAdapter).execute();
         break;
       case BluetoothAdapter.STATE_TURNING_ON:
+        break;
+    }
+  }
+
+  protected void setBTState(BTState s) {
+    this.btState = s;
+    switch (s) {
+      case CONNECTED:
+        this.btStatusText.setText(R.string.bluetooth_connected);
+        this.btStatusText.setTextColor(Color.BLACK);
+        this.btReconnectButton.setEnabled(false);
+        break;
+      case CONNECTING:
+        this.btStatusText.setText(R.string.bluetooth_connecting);
+        this.btStatusText.setTextColor(Color.BLACK);
+        this.btReconnectButton.setEnabled(false);
+        break;
+      case DISCONNECTED:
+        this.btStatusText.setText(R.string.bluetooth_disconnected);
+        this.btStatusText.setTextColor(Color.parseColor("#B00020"));
+        this.btReconnectButton.setEnabled(true);
         break;
     }
   }
@@ -139,7 +193,7 @@ public class MainActivity
       super.onPreExecute();
       MainActivity parentActivity = this.parentActivity.get();
       if (parentActivity == null) return;
-      parentActivity.btStatusText.setText(R.string.btConnecting);
+      parentActivity.setBTState(BTState.CONNECTING);
     }
 
     @Override
@@ -176,7 +230,6 @@ public class MainActivity
         btSocket.connect();
         return btSocket;
       } catch (IOException e) {
-        System.out.println(e.getMessage());
         return null;
       }
     }
@@ -186,16 +239,15 @@ public class MainActivity
       MainActivity parentActivity = this.parentActivity.get();
       if (parentActivity == null) return;
       if (btSocket == null) {
-        parentActivity.btStatusText.setText(R.string.btDown);
+        parentActivity.setBTState(BTState.DISCONNECTED);
       } else {
         parentActivity.btSocket = btSocket;
         try {
           parentActivity.btOut = btSocket.getOutputStream();
         } catch (IOException e) {
-          System.out.println(e.getMessage());
+          parentActivity.setBTState(BTState.DISCONNECTED);
         }
-        parentActivity.btConnected = true;
-        parentActivity.btStatusText.setText(R.string.btUp);
+        parentActivity.setBTState(BTState.CONNECTED);
         new StateUpdateTask(btSocket, parentActivity).execute();
       }
     }
@@ -203,12 +255,12 @@ public class MainActivity
 
   public static class CurrentState {
     public boolean enabled;
+    public int brightness;
     public int pattern;
   }
 
   public static class StateUpdateTask extends AsyncTask<Void, Void, CurrentState>
   {
-
     private WeakReference<BluetoothSocket> btSocket;
     private WeakReference<MainActivity> parentActivity;
 
@@ -219,9 +271,9 @@ public class MainActivity
 
     @Override
     protected CurrentState doInBackground(Void... voids) {
+      BluetoothSocket btSocket = this.btSocket.get();
+      if (btSocket == null) return null;
       try {
-        BluetoothSocket btSocket = this.btSocket.get();
-        if (btSocket == null) return null;
         btSocket.getOutputStream().write(0x2);
         btSocket.getOutputStream().write("GP".getBytes());
 
@@ -236,11 +288,13 @@ public class MainActivity
 
         CurrentState s = new CurrentState();
         s.enabled = buffer[0] == '1';
-        s.pattern = buffer[1];
-        return s;
+        s.brightness = buffer[1] & 0xff; // account for signedness
+        s.pattern = buffer[2] & 0xff;
 
+        return s;
       } catch (IOException e) {
-        e.printStackTrace();
+        MainActivity parentActivity = this.parentActivity.get();
+        if (parentActivity != null) parentActivity.setBTState(BTState.DISCONNECTED);
         return null;
       }
     }
@@ -252,6 +306,7 @@ public class MainActivity
       if (parentActivity == null) return;
 
       parentActivity.powerSwitch.setChecked(s.enabled);
+      parentActivity.dimmerBar.setProgress(s.brightness);
       parentActivity.patternSpinner.setSelection(s.pattern, true);
       parentActivity.selectedPattern = s.pattern;
     }
@@ -259,7 +314,7 @@ public class MainActivity
 
   @Override
   public void onItemSelected(AdapterView<?> parent, View view, int pos, long id) {
-    if (!btConnected) return;
+    if (btState != BTState.CONNECTED) return;
     if (pos == selectedPattern) return;
     selectedPattern = pos;
     try {
@@ -267,7 +322,7 @@ public class MainActivity
       btOut.write('S');
       btOut.write(pos);
     } catch (IOException e) {
-      Toast.makeText(getApplicationContext(), e.getMessage(), Toast.LENGTH_LONG).show();
+      setBTState(BTState.DISCONNECTED);
     }
   }
 
@@ -276,16 +331,54 @@ public class MainActivity
 
   @Override
   public void onCheckedChanged(CompoundButton compoundButton, boolean state) {
-    if (!btConnected) return;
+    if (compoundButton != powerSwitch) return;
+    if (btState != BTState.CONNECTED) return;
     try {
-      btOut.write(0x2);
       if (state) {
-        btOut.write("P1".getBytes());
+        btOut.write("\2P1".getBytes());
       } else {
-        btOut.write("P0".getBytes());
+        btOut.write("\2P0".getBytes());
       }
     } catch (IOException e) {
-      Toast.makeText(getApplicationContext(), e.getMessage(), Toast.LENGTH_LONG).show();
+      setBTState(BTState.DISCONNECTED);
+    }
+  }
+
+  @Override
+  public void onClick(View view) {
+    if (view == btReconnectButton) {
+      if (btState == BTState.DISCONNECTED) {
+        new BluetoothConnectTask(this, BluetoothAdapter.getDefaultAdapter()).execute();
+        btReconnectButton.setActivated(false);
+      }
+    } else if (view == btStatusText) {
+      if (btState == BTState.CONNECTED) {
+        new StateUpdateTask(this.btSocket, this).execute();
+      }
+    }
+  }
+
+  @SuppressLint("DefaultLocale")
+  @Override
+  public void onProgressChanged(SeekBar seekBar, int brightness, boolean fromUser) {
+    if (seekBar != dimmerBar) return;
+    int percentBrightness = dimmerBar.getProgress() * 100 / 255;
+    dimmerPercentText.setText(String.format("%3d%%", percentBrightness));
+  }
+
+  @Override
+  public void onStartTrackingTouch(SeekBar seekBar) {}
+
+  @Override
+  public void onStopTrackingTouch(SeekBar seekBar) {
+    if (btState == BTState.CONNECTED) {
+      try {
+        btOut.write(0x2);
+        btOut.write('B');
+        btOut.write(dimmerBar.getProgress());
+      } catch (IOException e) {
+        setBTState(BTState.DISCONNECTED);
+      }
     }
   }
 
@@ -293,5 +386,10 @@ public class MainActivity
   public void onDestroy() {
     super.onDestroy();
     unregisterReceiver(btBroadcastReceiver);
+    try {
+      if (btSocket != null) btSocket.close();
+    } catch (IOException e) {
+      System.out.println(e.getMessage());
+    }
   }
 }

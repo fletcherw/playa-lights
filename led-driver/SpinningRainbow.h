@@ -5,19 +5,21 @@
 
 class SpinningRainbow : public Pattern {
 public:
-  SpinningRainbow(CRGB *leds, int num_leds) :
+  SpinningRainbow(CRGB *leds) :
     leds_(leds),
-    num_leds_(num_leds),
-    index_(0),
+    patch_index_(0),
+    hoop_index_(0),
     th_(0.0)
   {}
 
   void blit();
+  int updateInterval();
   
 private:
   CRGB *leds_;
   int num_leds_;
-  int index_;
+  int patch_index_;
+  int hoop_index_;
   double th_;
 
   const double delta = 0.1;

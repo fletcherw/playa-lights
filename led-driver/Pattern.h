@@ -8,6 +8,7 @@ public:
   Pattern() {}
   virtual ~Pattern() {}
   virtual void blit() = 0;
+  virtual int updateInterval();
 };
 
 #endif

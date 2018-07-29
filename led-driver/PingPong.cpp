@@ -14,3 +14,5 @@ void PingPong::blit() {
   leds_[index_].r = 40;
   leds_[index_].b = 120;
 }
+
+int PingPong::updateInterval() { return 50; }
