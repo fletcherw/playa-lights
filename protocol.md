@@ -9,6 +9,8 @@ Effects: P0 turns off strip, P1 turns on strip
 Name: Set pattern
 Syntax: S followed by a pattern index (in hex)
 
-Name: Get power
-Syntax: GP
-Returns: 0 if power is off, 1 if power is on.
+Name: Get state
+Syntax: G
+Returns:
+First byte: '0' if power is off, '1' if power is on.
+Second byte: Selected pattern index (hex)

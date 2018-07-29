@@ -2,21 +2,23 @@
 
 #include "FastLED.h"
 
-#define LED_DATA_PIN 12        // what output is connected to the LEDs
+#define LED_DATA_PIN 12
 #define COLOR_ORDER GRB
-#define NUM_LEDS 30
+#define NUM_LEDS 39
 #define LED_TYPE WS2812B
 
 #include "Pattern.h"
 #include "SpinningRainbow.h"
 #include "PingPong.h"
+#include "Scale.h"
 
 /* KEEP IN SYNC */
-unsigned char num_patterns = 2;
+unsigned char num_patterns = 3;
 
 enum pattern_type {
   SPINNING_RAINBOW,
-  PING_PONG
+  PING_PONG,
+  SCALE
 };
 /* KEEP IN SYNC */
 
@@ -79,10 +81,9 @@ bool checkLength(int desired_length) {
 void handleCommand() {
   switch(message[0]) {
     case 'G': {
-      if (message[1] == 'P') {
-        btSerial.write('\1');
-        btSerial.write(paused ? '0' : '1');
-      }
+      btSerial.write('\2');
+      btSerial.write(paused ? '0' : '1');
+      btSerial.write(active_pattern_index);
       break;
     }
     case 'P': {
@@ -99,7 +100,6 @@ void handleCommand() {
       break;
     }
     case 'S': {
-      if (!checkLength(2)) break;
       if (message[1] >= num_patterns) {
         Serial.println("Unsupported pattern received for 'S'");
         printMessage();
@@ -116,6 +116,9 @@ void handleCommand() {
             break;
           case PING_PONG:
             active_pattern = new PingPong(leds, NUM_LEDS);
+            break;
+          case SCALE:
+            active_pattern = new Scale(leds, NUM_LEDS);
             break;
         }
       }
@@ -180,15 +183,6 @@ void loop()
 //  }
 //  FastLED.show();
 //  delay(20);
-//}
-//
-//void scale(CRGB color) {
-//  for (int i = 0; i < NUM_LEDS; i++) {
-//    double fraction = double(i) / NUM_LEDS;
-//    leds[i] = color;
-//    leds[i] %= 128 * fraction; 
-//  }
-//  FastLED.show();
 //}
 //
 //void ping_pong() {

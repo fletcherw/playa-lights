@@ -3,5 +3,6 @@
   <string-array name="patterns_array">
     <item>Spinning Rainbow</item>
     <item>Ping Pong</item>
+    <item>Scale</item>
   </string-array>
 </resources>
