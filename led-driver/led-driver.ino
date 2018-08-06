@@ -14,9 +14,10 @@
 #include "Solid.h"
 #include "Sparkle.h"
 #include "Fire.h"
+#include "Pulse.h"
 
 /* KEEP IN SYNC */
-#define NUM_PATTERNS 6
+#define NUM_PATTERNS 7
 
 enum pattern_type {
   SPINNING_RAINBOW,
@@ -24,7 +25,8 @@ enum pattern_type {
   METRONOME,
   SOLID,
   SPARKLE,
-  FIRE
+  FIRE,
+  PULSE
 };
 /* KEEP IN SYNC */
 
@@ -51,7 +53,7 @@ void clearLeds() {
 }
 
 void setup() {
-  brightness = 128;
+  brightness = 255;
   paused = false;
   activePatternIndex = 5;
   activeColor = CRGB::White;
@@ -61,7 +63,7 @@ void setup() {
   FastLED.setBrightness(brightness);
   clearLeds();
 
-  activePattern = new Fire(leds);
+  activePattern = new Pulse(leds);
   lastBlit = millis();
   blitInterval = activePattern->updateInterval();
 
@@ -156,6 +158,9 @@ void handleCommand() {
             break;
           case FIRE:
             activePattern = new Fire(leds);
+            break;
+          case PULSE:
+            activePattern = new Pulse(leds);
             break;
         }
         activePattern->setColor(activeColor);

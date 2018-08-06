@@ -350,7 +350,8 @@ public class MainActivity
   }
 
   protected void syncColorSliderState() {
-    boolean colorEnabled = selectedPattern == 1 || selectedPattern == 2 || selectedPattern == 3;
+    boolean colorEnabled = selectedPattern == 1 || selectedPattern == 2 ||
+                           selectedPattern == 3 || selectedPattern == 6;
     redBar.setEnabled(colorEnabled);
     greenBar.setEnabled(colorEnabled);
     blueBar.setEnabled(colorEnabled);
