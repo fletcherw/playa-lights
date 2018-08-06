@@ -10,8 +10,9 @@
     android:id="@+id/patternSpinner"
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
-    android:layout_marginStart="16dp"
+    android:layout_marginStart="12dp"
     android:layout_marginTop="16dp"
+    android:textSize="18sp"
     app:layout_constraintStart_toEndOf="@+id/patternLabel"
     app:layout_constraintTop_toBottomOf="@+id/dimmerLabel" />
 
@@ -24,16 +25,16 @@
     app:layout_constraintBaseline_toBaselineOf="@+id/powerText"
     app:layout_constraintStart_toEndOf="@+id/powerText" />
 
-    <TextView
-      android:id="@+id/powerText"
-      android:layout_width="wrap_content"
-      android:layout_height="wrap_content"
-      android:layout_marginStart="16dp"
-      android:layout_marginTop="16dp"
-      android:text="@string/led_power"
-      android:textSize="18sp"
-      app:layout_constraintStart_toStartOf="parent"
-      app:layout_constraintTop_toBottomOf="@+id/btStatusLabel" />
+  <TextView
+    android:id="@+id/powerText"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:layout_marginStart="16dp"
+    android:layout_marginTop="16dp"
+    android:text="@string/led_power"
+    android:textSize="18sp"
+    app:layout_constraintStart_toStartOf="parent"
+    app:layout_constraintTop_toBottomOf="@+id/btStatusLabel" />
 
   <TextView
     android:id="@+id/btStatusText"
@@ -76,18 +77,6 @@
     app:layout_constraintStart_toStartOf="parent"
     app:layout_constraintTop_toBottomOf="@+id/dimmerLabel" />
 
-  <SeekBar
-    android:id="@+id/dimmerBar"
-    android:layout_width="0dp"
-    android:layout_height="0dp"
-    android:layout_marginEnd="16dp"
-    android:layout_marginStart="16dp"
-    app:layout_constraintBottom_toBottomOf="@+id/dimmerLabel"
-    app:layout_constraintEnd_toStartOf="@+id/dimmerPercentText"
-    app:layout_constraintStart_toEndOf="@+id/dimmerLabel"
-    app:layout_constraintTop_toTopOf="@+id/dimmerLabel"
-    app:layout_constraintVertical_bias="0.0" />
-
   <TextView
     android:id="@+id/dimmerLabel"
     android:layout_width="wrap_content"
@@ -101,12 +90,137 @@
 
   <TextView
     android:id="@+id/dimmerPercentText"
-    android:layout_width="wrap_content"
+    android:layout_width="50dp"
     android:layout_height="wrap_content"
     android:layout_marginEnd="16dp"
     android:text="@string/dim_percent_default"
+    android:textAlignment="textEnd"
     android:textSize="18sp"
     app:layout_constraintBaseline_toBaselineOf="@+id/dimmerLabel"
     app:layout_constraintEnd_toEndOf="parent" />
+
+  <SeekBar
+    android:id="@+id/dimmerBar"
+    android:layout_width="0dp"
+    android:layout_height="30dp"
+    android:layout_marginEnd="8dp"
+    android:layout_marginStart="8dp"
+    app:layout_constraintBottom_toBottomOf="@+id/dimmerLabel"
+    app:layout_constraintEnd_toStartOf="@+id/dimmerPercentText"
+    app:layout_constraintHorizontal_bias="1.0"
+    app:layout_constraintStart_toEndOf="@+id/dimmerLabel"
+    app:layout_constraintTop_toTopOf="@+id/dimmerLabel" />
+
+  <SeekBar
+    android:id="@+id/redSlider"
+    android:layout_width="0dp"
+    android:layout_height="30dp"
+    android:layout_marginEnd="8dp"
+    android:layout_marginStart="8dp"
+    app:layout_constraintBottom_toBottomOf="@+id/redLabel"
+    app:layout_constraintEnd_toStartOf="@+id/redValue"
+    app:layout_constraintStart_toEndOf="@+id/redLabel"
+    app:layout_constraintTop_toTopOf="@+id/redLabel" />
+
+  <SeekBar
+    android:id="@+id/greenSlider"
+    android:layout_width="0dp"
+    android:layout_height="30dp"
+    android:layout_marginEnd="8dp"
+    android:layout_marginStart="8dp"
+    app:layout_constraintBottom_toBottomOf="@+id/greenLabel"
+    app:layout_constraintEnd_toStartOf="@+id/greenValue"
+    app:layout_constraintStart_toEndOf="@+id/greenLabel"
+    app:layout_constraintTop_toTopOf="@+id/greenLabel" />
+
+  <SeekBar
+    android:id="@+id/blueSlider"
+    android:layout_width="0dp"
+    android:layout_height="30dp"
+    android:layout_marginEnd="8dp"
+    android:layout_marginStart="8dp"
+    app:layout_constraintBottom_toBottomOf="@+id/blueLabel"
+    app:layout_constraintEnd_toStartOf="@+id/blueValue"
+    app:layout_constraintStart_toEndOf="@+id/blueLabel"
+    app:layout_constraintTop_toTopOf="@+id/blueLabel" />
+
+  <TextView
+    android:id="@+id/redValue"
+    android:layout_width="35dp"
+    android:layout_height="wrap_content"
+    android:layout_marginEnd="16dp"
+    android:text="@string/color_component_default"
+    android:textAlignment="textEnd"
+    android:textSize="18sp"
+    app:layout_constraintBaseline_toBaselineOf="@+id/redLabel"
+    app:layout_constraintEnd_toStartOf="@+id/colorBox" />
+
+  <TextView
+    android:id="@+id/greenValue"
+    android:layout_width="35dp"
+    android:layout_height="wrap_content"
+    android:layout_marginEnd="16dp"
+    android:text="@string/color_component_default"
+    android:textAlignment="textEnd"
+    android:textSize="18sp"
+    app:layout_constraintBaseline_toBaselineOf="@+id/greenLabel"
+    app:layout_constraintEnd_toStartOf="@+id/colorBox" />
+
+  <TextView
+    android:id="@+id/blueValue"
+    android:layout_width="35dp"
+    android:layout_height="wrap_content"
+    android:layout_marginEnd="16dp"
+    android:text="@string/color_component_default"
+    android:textAlignment="textEnd"
+    android:textSize="18sp"
+    app:layout_constraintBaseline_toBaselineOf="@+id/blueLabel"
+    app:layout_constraintEnd_toStartOf="@+id/colorBox" />
+
+  <TextView
+    android:id="@+id/redLabel"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:layout_marginStart="16dp"
+    android:layout_marginTop="16dp"
+    android:text="@string/red_label"
+    android:textSize="18sp"
+    app:layout_constraintStart_toStartOf="parent"
+    app:layout_constraintTop_toBottomOf="@+id/patternLabel" />
+
+  <TextView
+    android:id="@+id/greenLabel"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:layout_marginStart="16dp"
+    android:layout_marginTop="16dp"
+    android:text="@string/green_label"
+    android:textSize="18sp"
+    app:layout_constraintStart_toStartOf="parent"
+    app:layout_constraintTop_toBottomOf="@+id/redLabel" />
+
+  <TextView
+    android:id="@+id/blueLabel"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:layout_marginStart="16dp"
+    android:layout_marginTop="16dp"
+    android:text="@string/blue_label"
+    android:textSize="18sp"
+    app:layout_constraintStart_toStartOf="parent"
+    app:layout_constraintTop_toBottomOf="@+id/greenLabel" />
+
+  <TextView
+    android:id="@+id/colorBox"
+    android:layout_width="0dp"
+    android:layout_height="0dp"
+    android:layout_marginBottom="32dp"
+    android:layout_marginEnd="16dp"
+    android:layout_marginTop="32dp"
+    android:background="@drawable/border"
+    app:layout_constraintBottom_toBottomOf="@+id/blueSlider"
+    app:layout_constraintDimensionRatio="1:1"
+    app:layout_constraintEnd_toEndOf="parent"
+    app:layout_constraintTop_toTopOf="@+id/redSlider" />
 
 </android.support.constraint.ConstraintLayout>

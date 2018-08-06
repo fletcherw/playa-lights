@@ -5,10 +5,11 @@
 
 class Pattern {
 public:
-  Pattern() {}
   virtual ~Pattern() {}
   virtual void blit() = 0;
-  virtual int updateInterval();
+  virtual int updateInterval() = 0;
+  
+  virtual void setColor(CRGB c) {}
 };
 
 #endif

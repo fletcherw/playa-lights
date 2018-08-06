@@ -7,8 +7,8 @@ class SpinningRainbow : public Pattern {
 public:
   SpinningRainbow(CRGB *leds) :
     leds_(leds),
-    patch_index_(0),
-    hoop_index_(0),
+    patchIndex_(0),
+    hoopIndex_(0),
     th_(0.0)
   {}
 
@@ -17,14 +17,14 @@ public:
   
 private:
   CRGB *leds_;
-  int num_leds_;
-  int patch_index_;
-  int hoop_index_;
+  int numLeds_;
+  int patchIndex_;
+  int hoopIndex_;
   double th_;
 
   const double delta = 0.1;
-  const double value_target = 80.0;
-  const double value_radius = 15.0;
+  const double valueTarget = 80.0;
+  const double valueRadius = 15.0;
 };
 
 #endif

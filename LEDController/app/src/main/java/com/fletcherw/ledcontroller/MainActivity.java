@@ -9,7 +9,6 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.graphics.Color;
-import android.icu.util.Output;
 import android.os.AsyncTask;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
@@ -26,12 +25,8 @@ import android.widget.TextView;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.lang.ref.WeakReference;
-import java.text.NumberFormat;
-import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
-
-import static java.lang.StrictMath.abs;
 
 public class MainActivity
     extends AppCompatActivity
@@ -59,8 +54,17 @@ public class MainActivity
   private Switch powerSwitch;
   private TextView btStatusText;
   private Button btReconnectButton;
+
   private SeekBar dimmerBar;
   private TextView dimmerPercentText;
+
+  private SeekBar redBar;
+  private SeekBar greenBar;
+  private SeekBar blueBar;
+  private TextView redLabel;
+  private TextView greenLabel;
+  private TextView blueLabel;
+  private TextView colorBox;
 
   public MainActivity() {
     btBroadcastReceiver = null;
@@ -100,7 +104,30 @@ public class MainActivity
     dimmerBar.setOnSeekBarChangeListener(this);
     dimmerPercentText = findViewById(R.id.dimmerPercentText);
     // trigger update of percent text label
-    dimmerBar.setProgress(0);
+    dimmerBar.setProgress(255);
+
+    // Color Sliders
+    redBar = findViewById(R.id.redSlider);
+    greenBar = findViewById(R.id.greenSlider);
+    blueBar = findViewById(R.id.blueSlider);
+    redBar.setMax(255);
+    greenBar.setMax(255);
+    blueBar.setMax(255);
+    redBar.setOnSeekBarChangeListener(this);
+    greenBar.setOnSeekBarChangeListener(this);
+    blueBar.setOnSeekBarChangeListener(this);
+
+    redLabel = findViewById(R.id.redValue);
+    greenLabel = findViewById(R.id.greenValue);
+    blueLabel = findViewById(R.id.blueValue);
+    colorBox = findViewById(R.id.colorBox);
+
+    // trigger update of color box and labels
+    redBar.setProgress(255);
+    greenBar.setProgress(255);
+    blueBar.setProgress(255);
+    updateColorBox();
+
 
     // Bluetooth
     btStatusText = findViewById(R.id.btStatusText);
@@ -176,7 +203,7 @@ public class MainActivity
         }
       }
     }
-  };
+  }
 
   public static class BluetoothConnectTask extends AsyncTask<Void, Void, BluetoothSocket>
   {
@@ -256,6 +283,9 @@ public class MainActivity
   public static class CurrentState {
     public boolean enabled;
     public int brightness;
+    public int red;
+    public int green;
+    public int blue;
     public int pattern;
   }
 
@@ -289,7 +319,10 @@ public class MainActivity
         CurrentState s = new CurrentState();
         s.enabled = buffer[0] == '1';
         s.brightness = buffer[1] & 0xff; // account for signedness
-        s.pattern = buffer[2] & 0xff;
+        s.red = buffer[2] & 0xff;
+        s.green = buffer[3] & 0xff;
+        s.blue = buffer[4] & 0xff;
+        s.pattern = buffer[5] & 0xff;
 
         return s;
       } catch (IOException e) {
@@ -307,16 +340,31 @@ public class MainActivity
 
       parentActivity.powerSwitch.setChecked(s.enabled);
       parentActivity.dimmerBar.setProgress(s.brightness);
+      parentActivity.redBar.setProgress(s.red);
+      parentActivity.greenBar.setProgress(s.green);
+      parentActivity.blueBar.setProgress(s.blue);
       parentActivity.patternSpinner.setSelection(s.pattern, true);
       parentActivity.selectedPattern = s.pattern;
+      parentActivity.syncColorSliderState();
     }
+  }
+
+  protected void syncColorSliderState() {
+    boolean colorEnabled = selectedPattern == 1 || selectedPattern == 2 || selectedPattern == 3;
+    redBar.setEnabled(colorEnabled);
+    greenBar.setEnabled(colorEnabled);
+    blueBar.setEnabled(colorEnabled);
+    if (colorEnabled) updateColorBox();
+    else colorBox.setBackgroundColor(Color.WHITE);
   }
 
   @Override
   public void onItemSelected(AdapterView<?> parent, View view, int pos, long id) {
-    if (btState != BTState.CONNECTED) return;
     if (pos == selectedPattern) return;
     selectedPattern = pos;
+    syncColorSliderState();
+
+    if (btState != BTState.CONNECTED) return;
     try {
       btOut.write(0x2);
       btOut.write('S');
@@ -358,12 +406,30 @@ public class MainActivity
     }
   }
 
+  private void updateColorBox() {
+    int red = redBar.getProgress();
+    int green = greenBar.getProgress();
+    int blue = blueBar.getProgress();
+    colorBox.setBackgroundColor(Color.rgb(red, green, blue));
+  }
+
   @SuppressLint("DefaultLocale")
   @Override
-  public void onProgressChanged(SeekBar seekBar, int brightness, boolean fromUser) {
-    if (seekBar != dimmerBar) return;
-    int percentBrightness = dimmerBar.getProgress() * 100 / 255;
-    dimmerPercentText.setText(String.format("%3d%%", percentBrightness));
+  public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+    if (seekBar == dimmerBar) {
+      int percentBrightness = progress * 100 / 255;
+      dimmerPercentText.setText(String.format("%d%%", percentBrightness));
+    } else if (seekBar == redBar) {
+      redLabel.setText(String.format("%d", progress));
+      updateColorBox();
+    } else if (seekBar == greenBar) {
+      greenLabel.setText(String.format("%d", progress));
+      updateColorBox();
+    } else if (seekBar == blueBar) {
+      blueLabel.setText(String.format("%d", progress));
+      updateColorBox();
+    }
+
   }
 
   @Override
@@ -371,11 +437,22 @@ public class MainActivity
 
   @Override
   public void onStopTrackingTouch(SeekBar seekBar) {
-    if (btState == BTState.CONNECTED) {
+    if (btState != BTState.CONNECTED) return;
+    if (seekBar == dimmerBar) {
       try {
         btOut.write(0x2);
         btOut.write('B');
         btOut.write(dimmerBar.getProgress());
+      } catch (IOException e) {
+        setBTState(BTState.DISCONNECTED);
+      }
+    } else if (seekBar == redBar || seekBar == greenBar || seekBar == blueBar) {
+      try {
+        btOut.write(0x4);
+        btOut.write('C');
+        btOut.write(redBar.getProgress());
+        btOut.write(greenBar.getProgress());
+        btOut.write(blueBar.getProgress());
       } catch (IOException e) {
         setBTState(BTState.DISCONNECTED);
       }

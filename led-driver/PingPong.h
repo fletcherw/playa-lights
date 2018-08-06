@@ -5,19 +5,20 @@
 
 class PingPong : public Pattern {
 public:
-  PingPong(CRGB *leds, int num_leds) :
+  PingPong(CRGB *leds) :
     leds_(leds),
-    num_leds_(num_leds),
+    color_(CRGB(40, 0, 120)),
     index_(0),
     delta_(1)
   {}
 
   void blit();
   int updateInterval();
+  void setColor(CRGB c);
   
 private:
   CRGB *leds_;
-  int num_leds_;
+  CRGB color_;
   int index_;
   int delta_;
 };

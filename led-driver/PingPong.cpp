@@ -3,16 +3,20 @@
 void PingPong::blit() {
   leds_[index_] = CRGB::Black;
   index_ += delta_;
-  if (index_ >= num_leds_) {
+  if (index_ >= 39) {
     delta_ = -1;
-    index_ = num_leds_ - 2;
+    index_ = 39 - 2;
   } else if (index_ < 0) {
     delta_ = 1;
     index_ = 1;
   }
   
-  leds_[index_].r = 40;
-  leds_[index_].b = 120;
+  leds_[index_] = color_;
 }
 
 int PingPong::updateInterval() { return 50; }
+
+void PingPong::setColor(CRGB c) {
+  color_ = c;
+  blit();
+}

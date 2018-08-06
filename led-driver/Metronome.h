@@ -7,21 +7,24 @@ class Metronome : public Pattern {
 public:
   Metronome(CRGB *leds) :
     leds_(leds),
-    hoop_index_(0),
-    hoop_delta_(1),
-    arm_index_(1),
-    arm_delta_(1)
+    color_(CRGB::Blue),
+    hoopIndex_(0),
+    hoopDelta_(1),
+    armIndex_(1),
+    armDelta_(1)
   {}
 
   void blit();
   int updateInterval();
+  void setColor(CRGB c);
   
 private:
   CRGB *leds_;
-  int hoop_index_;
-  int hoop_delta_;
-  int arm_index_;
-  int arm_delta_;
+  CRGB color_;
+  int hoopIndex_;
+  int hoopDelta_;
+  int armIndex_;
+  int armDelta_;
 };
 
 #endif

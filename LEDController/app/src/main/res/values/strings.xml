@@ -8,5 +8,9 @@
   <string name="bluetooth_connect">Connect</string>
   <string name="pattern">Pattern:</string>
   <string name="dim_label">Dim:</string>
-  <string name="dim_percent_default">0%</string>
+  <string name="dim_percent_default">  0%</string>
+  <string name="red_label">R:</string>
+  <string name="green_label">G:</string>
+  <string name="blue_label">B:</string>
+  <string name="color_component_default">  0</string>
 </resources>
