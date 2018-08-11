@@ -351,12 +351,12 @@ public class MainActivity
 
   protected void syncColorSliderState() {
     boolean colorEnabled = selectedPattern == 1 || selectedPattern == 2 ||
-                           selectedPattern == 3 || selectedPattern == 6;
+                           selectedPattern == 5 || selectedPattern == 6;
     redBar.setEnabled(colorEnabled);
     greenBar.setEnabled(colorEnabled);
     blueBar.setEnabled(colorEnabled);
     if (colorEnabled) updateColorBox();
-    else colorBox.setBackgroundColor(Color.WHITE);
+    else colorBox.setBackgroundColor(Color.LTGRAY);
   }
 
   @Override

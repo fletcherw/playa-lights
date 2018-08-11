@@ -6,8 +6,6 @@ int sparking = 55;
 Fire::Fire(LEDSegment leds) : leds_(leds)
 {
   updateInterval_ = 55;
-  Serial.print("Length: ");
-  Serial.println((int) leds_.length());
   heat_ = new byte[leds_.length()]; 
 }
 

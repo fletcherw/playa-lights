@@ -8,14 +8,15 @@
 #include "src/patterns/Pattern.h"
 #include "src/patterns/LEDSegment.h"
 
+/* vvv KEEP IN SYNC vvv */
 #include "src/patterns/SpinningRainbow.h"
 #include "src/patterns/PingPong.h"
 #include "src/patterns/Solid.h"
 #include "src/patterns/Sparkle.h"
 #include "src/patterns/Fire.h"
 #include "src/patterns/Pulse.h"
+#include "src/patterns/Meteor.h"
 
-/* KEEP IN SYNC */
 #define NUM_PATTERNS 7
 
 enum pattern_type {
@@ -24,9 +25,10 @@ enum pattern_type {
   SOLID,
   SPARKLE,
   FIRE,
-  PULSE
+  PULSE,
+  METEOR
 };
-/* KEEP IN SYNC */
+/* ^^^ KEEP IN SYNC ^^^ */
 
 // array used to display patterns
 CRGB leds[NUM_LEDS];
@@ -42,28 +44,24 @@ LEDSegment patchTwo = LEDSegment(leds, 33, 29); // reversed
 LEDSegment patchThree = LEDSegment(leds, 34, 38);
 
 
+// current pattern settings
 pattern_type activePattern;
 CRGB activeColor;
+byte brightness;
+bool paused;
 
+// data related to running patterns
 #define MAX_ACTIVE_PATTERNS 5
 int numActivePatternSegments;
 Pattern* activePatternSegments[MAX_ACTIVE_PATTERNS];
 long lastBlit[MAX_ACTIVE_PATTERNS];
 
-int brightness;
-bool paused;
-
-#define BUF_SIZE 128
 // buffer for incoming commands
+#define BUF_SIZE 128
 size_t messageLength;
 size_t bytesRead;
 bool inMessage;
 char message[BUF_SIZE];
-
-void clearLeds() {
-   for (int i = 0; i < NUM_LEDS; i++) leds[i] = CRGB::Black;
-   FastLED.show();
-}
 
 void setup() {
   Serial.begin(9600);
@@ -81,10 +79,29 @@ void setup() {
   FastLED.setBrightness(brightness);
   clearLeds();
 
-  setPattern(FIRE);
+  setPattern(METEOR);
+}
+
+void loop() {
+  long time = millis();
+  if (numActivePatternSegments != 0 && !paused) {
+    for (int i = 0; i < numActivePatternSegments; i++) {
+      Pattern* p = activePatternSegments[i];
+      int interval = p->getUpdateInterval();
+      if (interval != -1 && (time - lastBlit[i]) >= interval) {
+        p->blit();
+        lastBlit[i] = time;
+      }
+    }
+    FastLED.show();
+  }
+  receiveBluetooth();
+  FastLED.delay(10);
 }
 
 void setPattern(pattern_type p) {
+  if (activePattern == p) return;
+  activePattern = p;
   for (int i = 0; i < numActivePatternSegments; i++) {
     delete activePatternSegments[i];
   }
@@ -98,7 +115,13 @@ void setPattern(pattern_type p) {
       break;
     case PING_PONG:
       activePatternSegments[0] = new PingPong(packHoop);
-      numActivePatternSegments = 1;
+      activePatternSegments[1] = new PingPong(patchOne);
+      activePatternSegments[2] = new PingPong(LEDSegment(leds, 29, 33));
+      activePatternSegments[3] = new PingPong(patchThree);
+      activePatternSegments[1]->setUpdateInterval(100);
+      activePatternSegments[2]->setUpdateInterval(100);
+      activePatternSegments[3]->setUpdateInterval(100);
+      numActivePatternSegments = 4;
       break;
     case SOLID:
       activePatternSegments[0] = new Solid(all);
@@ -111,37 +134,29 @@ void setPattern(pattern_type p) {
     case FIRE:
       activePatternSegments[0] = new Fire(packLeft);
       activePatternSegments[1] = new Fire(packRight);
-      numActivePatternSegments = 2;
+      activePatternSegments[2] = new Pulse(patchOne);
+      activePatternSegments[3] = new Pulse(patchTwo);
+      activePatternSegments[4] = new Pulse(patchThree);
+      activePatternSegments[2]->setColor(CRGB::Red);
+      activePatternSegments[3]->setColor(CRGB::Red);
+      activePatternSegments[4]->setColor(CRGB::Red);
+      numActivePatternSegments = 5;
       break;
     case PULSE:
       activePatternSegments[0] = new Pulse(all);
       numActivePatternSegments = 1;
       break;
+    case METEOR:
+      activePatternSegments[0] = new Meteor(packHoop);
+      numActivePatternSegments = 1;
+      break;
   }
   long currentTime = millis();
   for (int i = 0; i < numActivePatternSegments; i++) {
-    activePatternSegments[i]->setColor(activeColor);
+    if (usesUserColor(p)) activePatternSegments[i]->setColor(activeColor);
     activePatternSegments[i]->blit();
     lastBlit[i] = currentTime;
   }  
-}
-
-void printMessage() {
-  Serial.print("Command: ");
-  message[bytesRead] = '\0';
-  Serial.println(message);
-}
-
-bool checkLength(int desiredLength) {
-  if (desiredLength != bytesRead) {
-    Serial.print("Incorrect message length, expected ");
-    Serial.print(desiredLength);
-    Serial.print(" received ");
-    Serial.println(bytesRead);
-    printMessage();
-    return false;
-  }
-  return true;
 }
 
 void handleCommand() {
@@ -162,7 +177,7 @@ void handleCommand() {
     case 'G': {
       Serial1.write('\6');
       Serial1.write(paused ? '0' : '1');
-      Serial1.write(128);
+      Serial1.write(brightness);
       Serial1.write(activeColor.red);
       Serial1.write(activeColor.green);
       Serial1.write(activeColor.blue);
@@ -188,10 +203,10 @@ void handleCommand() {
         Serial.println("Unsupported pattern received for 'S'");
         printMessage();
       } else {
-        if (((pattern_type) message[1]) == activePattern) break;
+        pattern_type newPattern = (pattern_type) message[1];
+        if (newPattern == activePattern) break;
         clearLeds();
-        activePattern = (pattern_type) message[1];
-        setPattern(activePattern);
+        setPattern(newPattern);
         FastLED.show();
       }
       break;
@@ -224,67 +239,40 @@ void receiveBluetooth() {
   }
 }
 
-void loop() 
-{
-  long time = millis();
-  if (numActivePatternSegments != 0 && !paused) {
-    for (int i = 0; i < numActivePatternSegments; i++) {
-      Pattern* p = activePatternSegments[i];
-      int interval = p->getUpdateInterval();
-      if (interval != -1 && (time - lastBlit[i]) >= interval) {
-        p->blit();
-        lastBlit[i] = time;
-      }
-    }
-    FastLED.show();
+bool usesUserColor(pattern_type p) {
+  switch (p) {
+    case PING_PONG:
+    case SOLID:
+    case SPARKLE:
+    case PULSE:
+    case METEOR:
+      return true;
+    case SPINNING_RAINBOW:
+    case FIRE:
+    default:
+      return false;
   }
-  receiveBluetooth();
-  FastLED.delay(10);
 }
 
-//void scalePingPong() {
-//  idx += ppDelta;
-//  if (idx >= NUM_LEDS) {
-//    ppDelta *= -1;
-//    idx = NUM_LEDS - 1 + ppDelta;
-//  } else if (idx < 0) {
-//    ppDelta *= -1;
-//    idx = ppDelta;
-//  }
-//
-//  for (int i = 0; i < NUM_LEDS; i++) {
-//    double fraction;
-//    if (i <= idx) {
-//      fraction = double(i) / idx;
-//    } else {
-//      fraction = double(NUM_LEDS - i) / (NUM_LEDS - idx);
-//    }    
-//    leds[i].r = 40;
-//    leds[i].b = 120;
-//    leds[i] %= (int) (fraction * 100);
-//  }
-//
-//  FastLED.show();
-//  delay(50);
-//}
-//
-//void sinCrawl() {
-//  th += 0.1;
-//  double ps = 0.3;
-//  double maxBright = 140;
-//  for (int i = 0; i < NUM_LEDS; i++) {
-//    double value = sin(th + ps * (i - (NUM_LEDS / 2)));
-//    double mapped = (value * value * value * value) * maxBright;
-//    leds[i].g = 0;
-//    leds[i].b = 0;
-//    if (value > 0) {
-//      leds[i].b = (int) abs(mapped);
-//    } else {
-//      leds[i].g = (int) abs(mapped);
-//    }
-//  }
-//  FastLED.show();
-//  delay(50);
-//}
+void clearLeds() {
+   for (int i = 0; i < NUM_LEDS; i++) leds[i] = CRGB::Black;
+   FastLED.show();
+}
 
+void printMessage() {
+  Serial.print("Command: ");
+  message[bytesRead] = '\0';
+  Serial.println(message);
+}
 
+bool checkLength(int desiredLength) {
+  if (desiredLength != bytesRead) {
+    Serial.print("Incorrect message length, expected ");
+    Serial.print(desiredLength);
+    Serial.print(" received ");
+    Serial.println(bytesRead);
+    printMessage();
+    return false;
+  }
+  return true;
+}
