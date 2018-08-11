@@ -95,7 +95,8 @@ void setup() {
   FastLED.setMaxPowerInVoltsAndMilliamps(5, 2400);
   FastLED.setBrightness(brightness);
   clearLeds();
-  setPattern(METEOR);
+  activePatternIndex = 3;//METEOR;
+  setPattern(activePatternIndex);
 }
 //*****************************************************
 // Loop
@@ -103,7 +104,8 @@ void setup() {
 void loop()
 {
   potValue = analogRead(POT_PIN); // read the state of the pushbutton value
-  buttonState = digitalRead(BUTTON_PIN); // read the state of the pushbutton value
+  //buttonState = digitalRead(BUTTON_PIN); // read the state of the pushbutton value
+  pollButton(); // Check button state
 
   // Update pattern s
   long time = millis();
@@ -138,6 +140,7 @@ void setPattern(pattern_type p) {
   for (int i = 0; i < numActivePatternSegments; i++) {
     delete activePatternSegments[i];
   }
+  clearLeds();
   switch (p) {
     case SPINNING_RAINBOW:
       activePatternSegments[0] = new SpinningRainbow(all, 10);
@@ -150,6 +153,8 @@ void setPattern(pattern_type p) {
       activePatternSegments[0] = new PingPong(middle);
       numActivePatternSegments = 1;
       break;
+    //case METRONOME:
+    //  break;
     case SOLID:
       activePatternSegments[0] = new Solid(all);
       numActivePatternSegments = 1;
@@ -189,6 +194,9 @@ void setPattern(pattern_type p) {
       activePatternSegments[0] = new Meteor(all);
       numActivePatternSegments = 1;
       break;
+    default:
+      numActivePatternSegments =0; 
+      break; 
   }
   long currentTime = millis();
   for (int i = 0; i < numActivePatternSegments; i++) {
@@ -202,5 +210,21 @@ void setPattern(pattern_type p) {
 void clearLeds() {
   for (int i = 0; i < NUM_LEDS; i++) leds[i] = CRGB::Black;
   FastLED.show();
+}
+
+// Button click with debouncing
+void pollButton() {
+  if ( !digitalRead(BUTTON_PIN) ) {
+    delay(30);
+    while (!digitalRead(BUTTON_PIN)) {
+      delay(1);
+    }
+    activePatternIndex++;
+    activePatternIndex %= NUM_PATTERNS;
+    setPattern(activePatternIndex);
+    Serial.print("Switched mode to ");
+    Serial.println((int) activePatternIndex);
+    
+  }
 }
 
