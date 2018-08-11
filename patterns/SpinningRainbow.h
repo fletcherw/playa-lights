@@ -1,25 +1,26 @@
 #ifndef SPINNING_RAINBOW_H
 #define SPINNING_RAINBOW_H
 
+#include "LEDSegment.h"
 #include "Pattern.h"
 
 class SpinningRainbow : public Pattern {
 public:
-  SpinningRainbow(CRGB *leds) :
+  SpinningRainbow(LEDSegment leds, int circleRadius) :
     leds_(leds),
-    patchIndex_(0),
-    hoopIndex_(0),
+    index_(0),
+    radius_(circleRadius),
     th_(0.0)
-  {}
+  {
+    updateInterval_ = 80; 
+  }
 
   void blit();
-  int updateInterval();
   
 private:
-  CRGB *leds_;
-  int numLeds_;
-  int patchIndex_;
-  int hoopIndex_;
+  LEDSegment leds_;
+  int index_;
+  int radius_;
   double th_;
 
   const double delta = 0.1;

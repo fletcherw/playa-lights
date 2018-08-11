@@ -3,44 +3,44 @@
 int cooling = 15;
 int sparking = 55;
 
+Fire::Fire(LEDSegment leds) : leds_(leds)
+{
+  updateInterval_ = 55;
+  Serial.print("Length: ");
+  Serial.println((int) leds_.length());
+  heat_ = new byte[leds_.length()]; 
+}
+
+Fire::~Fire() {
+  delete heat_;
+}
+
 void Fire::blit() {
-  for (int i = 0; i < 24; i++) {
+  for (int i = 0; i < leds_.length(); i++) {
     int cooldown = random(0, ((15 * 10) / 12) + 2);
    
-    if (cooldown > heat[i]) {
-      heat[i] = 0;
+    if (cooldown > heat_[i]) {
+      heat_[i] = 0;
     } else {
-      heat[i] = heat[i] - cooldown;
+      heat_[i] = heat_[i] - cooldown;
     }
   }
 
   // Step 2.  Heat from each cell drifts 'up' and diffuses a little
-  for (int k = 11; k >= 2; k--) {
-    heat[k] = (heat[k - 1] + 2 * heat[k - 2]) / 3;
-  }
-  
-  for (int k = 12; k < 22; k++) {
-    heat[k] = (heat[k + 1] + 2 * heat[k + 2]) / 3;
+  for (int k = leds_.length() - 1; k >= 2; k--) {
+    heat_[k] = (heat_[k - 1] + 2 * heat_[k - 2]) / 3;
   }
 
   // Step 3.  Randomly ignite new 'sparks' near the bottom
   if (random(255) < sparking) {
-    int y = random(4);
-    int index;
-    if (y <= 1) index = y;
-    else index = 24 - y + 1;
-    
-    heat[index] = heat[index] + random(160,255);
+    int index = random(3);
+    heat_[index] = heat_[index] + random(160,255);
   }
 
   // Step 4.  Convert heat to LED colors
-  for (int j = 0; j < 24; j++) {
-    leds_[j] = getPixelHeatColor_(j, heat[j]);
+  for (int j = 0; j < leds_.length(); j++) {
+    leds_[j] = getPixelHeatColor_(j, heat_[j]);
   }
-}
-
-int Fire::updateInterval() {
-  return 55;
 }
 
 CRGB Fire::getPixelHeatColor_(int pixel, byte temperature) {

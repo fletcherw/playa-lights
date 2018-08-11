@@ -11,10 +11,6 @@ void Pulse::blit() {
   }
 }
 
-int Pulse::updateInterval() {
-  return 50;
-}
-
 void Pulse::setColor(CRGB c) {
   color_ = c;
   blit();

@@ -1,11 +1,12 @@
 #ifndef PING_PONG_H
 #define PING_PONG_H
 
+#include "LEDSegment.h"
 #include "Pattern.h"
 
 class PingPong : public Pattern {
 public:
-  PingPong(CRGB *leds) :
+  PingPong(LEDSegment leds) :
     leds_(leds),
     color_(CRGB(40, 0, 120)),
     index_(0),
@@ -17,7 +18,7 @@ public:
   void setColor(CRGB c);
   
 private:
-  CRGB *leds_;
+  LEDSegment leds_;
   CRGB color_;
   int index_;
   int delta_;

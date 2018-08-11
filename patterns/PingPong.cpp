@@ -3,9 +3,9 @@
 void PingPong::blit() {
   leds_[index_] = CRGB::Black;
   index_ += delta_;
-  if (index_ >= 39) {
+  if (index_ >= leds_.length()) {
     delta_ = -1;
-    index_ = 39 - 2;
+    index_ = leds_.length() - 2;
   } else if (index_ < 0) {
     delta_ = 1;
     index_ = 1;

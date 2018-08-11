@@ -1,22 +1,21 @@
 #ifndef FIRE_H
 #define FIRE_H
 
+#include "LEDSegment.h"
 #include "Pattern.h"
 
 class Fire : public Pattern {
-  public:
-  Fire(CRGB *leds) :
-    leds_(leds)
-  {}
+public:
+  Fire(LEDSegment leds);
+  ~Fire();
 
   void blit();
-  int updateInterval();
   
 private:
   CRGB getPixelHeatColor_(int pixel, byte temperature);
   
-  CRGB *leds_;
-  byte heat[24];
+  LEDSegment leds_;
+  byte* heat_;
 };
 
 #endif

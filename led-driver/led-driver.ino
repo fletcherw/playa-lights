@@ -6,9 +6,10 @@
 #define LED_TYPE WS2812B
 
 #include "src/patterns/Pattern.h"
+#include "src/patterns/LEDSegment.h"
+
 #include "src/patterns/SpinningRainbow.h"
 #include "src/patterns/PingPong.h"
-#include "src/patterns/Metronome.h"
 #include "src/patterns/Solid.h"
 #include "src/patterns/Sparkle.h"
 #include "src/patterns/Fire.h"
@@ -20,7 +21,6 @@
 enum pattern_type {
   SPINNING_RAINBOW,
   PING_PONG,
-  METRONOME,
   SOLID,
   SPARKLE,
   FIRE,
@@ -30,15 +30,30 @@ enum pattern_type {
 
 // array used to display patterns
 CRGB leds[NUM_LEDS];
-int activePatternIndex;
-Pattern* activePattern;
+
+LEDSegment all = LEDSegment(leds, 0, 38);
+
+LEDSegment packLeft = LEDSegment(leds, 0, 11);
+LEDSegment packRight = LEDSegment(leds, 23, 12); // reversed
+LEDSegment packHoop = LEDSegment(leds, 0, 23);
+
+LEDSegment patchOne = LEDSegment(leds, 24, 28);
+LEDSegment patchTwo = LEDSegment(leds, 33, 29); // reversed
+LEDSegment patchThree = LEDSegment(leds, 34, 38);
+
+
+pattern_type activePattern;
 CRGB activeColor;
-int blitInterval;
+
+#define MAX_ACTIVE_PATTERNS 5
+int numActivePatternSegments;
+Pattern* activePatternSegments[MAX_ACTIVE_PATTERNS];
+long lastBlit[MAX_ACTIVE_PATTERNS];
+
 int brightness;
 bool paused;
-long lastBlit;
 
-#define BUF_SIZE 256
+#define BUF_SIZE 128
 // buffer for incoming commands
 size_t messageLength;
 size_t bytesRead;
@@ -51,9 +66,14 @@ void clearLeds() {
 }
 
 void setup() {
+  Serial.begin(9600);
+  Serial1.begin(9600);
+  messageLength = 0;
+  bytesRead = 0;
+  inMessage = false;
+
   brightness = 255;
   paused = false;
-  activePatternIndex = 5;
   activeColor = CRGB::White;
   
   FastLED.addLeds<LED_TYPE, LED_DATA_PIN, COLOR_ORDER>(leds, NUM_LEDS);
@@ -61,15 +81,49 @@ void setup() {
   FastLED.setBrightness(brightness);
   clearLeds();
 
-  activePattern = new Pulse(leds);
-  lastBlit = millis();
-  blitInterval = activePattern->updateInterval();
+  setPattern(FIRE);
+}
 
-  Serial.begin(9600);
-  Serial1.begin(9600);
-  messageLength = 0;
-  bytesRead = 0;
-  inMessage = false;
+void setPattern(pattern_type p) {
+  for (int i = 0; i < numActivePatternSegments; i++) {
+    delete activePatternSegments[i];
+  }
+  switch (p) {
+    case SPINNING_RAINBOW:
+      activePatternSegments[0] = new SpinningRainbow(packHoop, 75);
+      activePatternSegments[1] = new SpinningRainbow(patchOne, 20);
+      activePatternSegments[2] = new SpinningRainbow(patchTwo, 20);
+      activePatternSegments[3] = new SpinningRainbow(patchThree, 20);
+      numActivePatternSegments = 4;
+      break;
+    case PING_PONG:
+      activePatternSegments[0] = new PingPong(packHoop);
+      numActivePatternSegments = 1;
+      break;
+    case SOLID:
+      activePatternSegments[0] = new Solid(all);
+      numActivePatternSegments = 1;
+      break;
+    case SPARKLE:
+      activePatternSegments[0] = new Sparkle(all);
+      numActivePatternSegments = 1;
+      break;
+    case FIRE:
+      activePatternSegments[0] = new Fire(packLeft);
+      activePatternSegments[1] = new Fire(packRight);
+      numActivePatternSegments = 2;
+      break;
+    case PULSE:
+      activePatternSegments[0] = new Pulse(all);
+      numActivePatternSegments = 1;
+      break;
+  }
+  long currentTime = millis();
+  for (int i = 0; i < numActivePatternSegments; i++) {
+    activePatternSegments[i]->setColor(activeColor);
+    activePatternSegments[i]->blit();
+    lastBlit[i] = currentTime;
+  }  
 }
 
 void printMessage() {
@@ -99,7 +153,9 @@ void handleCommand() {
     }
     case 'C': {
       activeColor = CRGB(message[1], message[2], message[3]);
-      activePattern->setColor(activeColor);
+      for (int i = 0; i < numActivePatternSegments; i++) {
+        activePatternSegments[i]->setColor(activeColor);
+      }
       FastLED.show();
       break;
     }
@@ -110,7 +166,7 @@ void handleCommand() {
       Serial1.write(activeColor.red);
       Serial1.write(activeColor.green);
       Serial1.write(activeColor.blue);
-      Serial1.write(activePatternIndex);
+      Serial1.write(activePattern);
       break;
     }
     case 'P': {
@@ -132,40 +188,11 @@ void handleCommand() {
         Serial.println("Unsupported pattern received for 'S'");
         printMessage();
       } else {
-        if (message[1] == activePatternIndex) break;
-        if (activePattern != nullptr) {
-          delete activePattern;
-          clearLeds();
-        }
-        activePatternIndex = message[1];
-        switch ((pattern_type) message[1]) {
-          case SPINNING_RAINBOW:
-            activePattern = new SpinningRainbow(leds);
-            break;
-          case PING_PONG:
-            activePattern = new PingPong(leds);
-            break;
-          case METRONOME:
-            activePattern = new Metronome(leds);
-            break;
-          case SOLID:
-            activePattern = new Solid(leds);
-            break;
-          case SPARKLE:
-            activePattern = new Sparkle(leds);
-            break;
-          case FIRE:
-            activePattern = new Fire(leds);
-            break;
-          case PULSE:
-            activePattern = new Pulse(leds);
-            break;
-        }
-        activePattern->setColor(activeColor);
-        activePattern->blit();
-        lastBlit = millis();
+        if (((pattern_type) message[1]) == activePattern) break;
+        clearLeds();
+        activePattern = (pattern_type) message[1];
+        setPattern(activePattern);
         FastLED.show();
-        blitInterval = activePattern->updateInterval();
       }
       break;
     }
@@ -200,11 +227,16 @@ void receiveBluetooth() {
 void loop() 
 {
   long time = millis();
-  if (activePattern != nullptr && !paused &&
-      blitInterval != -1 && (time - lastBlit) >= blitInterval) {
-    activePattern->blit();
+  if (numActivePatternSegments != 0 && !paused) {
+    for (int i = 0; i < numActivePatternSegments; i++) {
+      Pattern* p = activePatternSegments[i];
+      int interval = p->getUpdateInterval();
+      if (interval != -1 && (time - lastBlit[i]) >= interval) {
+        p->blit();
+        lastBlit[i] = time;
+      }
+    }
     FastLED.show();
-    lastBlit = time;
   }
   receiveBluetooth();
   FastLED.delay(10);

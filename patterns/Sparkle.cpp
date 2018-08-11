@@ -1,4 +1,27 @@
 #include "Sparkle.h"
+Sparkle::Sparkle(LEDSegment leds) :
+    leds_(leds),
+    lastBlit_(millis()),
+    color_(CRGB::Red)
+  {
+    states_ = new pixelState[leds_.length()];
+    for (int i = 0; i < leds_.length(); i++) {
+      states_[i].lifetime = random(1000, 6000);
+      bool alive = random(0, 4) == 0;
+      if (alive) {
+        states_[i].age = 0;
+      } else {
+        states_[i].age = random(-10000, -3000);
+      }
+      leds_[i] = calculateColor_(states_[i]);
+    }
+  }
+
+Sparkle::~Sparkle() {
+  delete states_;
+}
+
+
 
 CRGB Sparkle::calculateColor_(const Sparkle::pixelState& state) {
   double lifeFraction = double(state.age) / state.lifetime;
@@ -10,7 +33,6 @@ CRGB Sparkle::calculateColor_(const Sparkle::pixelState& state) {
   if (lifeFraction > 0.8) {
     double intervalFraction = (lifeFraction - 0.8) / 0.2;
     return CHSV(28 * (1 - intervalFraction), 255, (1 - intervalFraction) * 255);
-    //return ((1 - (lifeFraction - .5) / .5) * CRGB::Orange) + ((lifeFraction - .5) / .5 * CRGB::Black);
   }
 }
 
@@ -26,10 +48,3 @@ void Sparkle::blit() {
     leds_[i] = calculateColor_(states_[i]);
   }
 }
-
-int Sparkle::updateInterval() { return 50; }
-
-void Sparkle::setColor(CRGB c) {
-
-}
-
