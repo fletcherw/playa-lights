@@ -39,7 +39,7 @@ CRGB Sparkle::calculateColor_(const Sparkle::pixelState& state) {
 void Sparkle::blit() {
   int delta = millis() - lastBlit_;
   lastBlit_ = millis();
-  for (int i = 0; i < 39; i++) {
+  for (int i = 0; i < leds_.length(); i++) {
     states_[i].age += delta;
     if (states_[i].age > states_[i].lifetime) {
       states_[i].lifetime = random(1000, 6000);

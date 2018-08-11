@@ -8,7 +8,6 @@ class Fire : public Pattern {
 public:
   Fire(LEDSegment leds);
   ~Fire();
-
   void blit();
   
 private:
