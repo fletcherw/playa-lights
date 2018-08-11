@@ -1,5 +1,4 @@
 #include <SoftwareSerial.h>
-
 #include "FastLED.h"
 
 #define LED_TYPE WS2801
@@ -11,18 +10,18 @@
 #define BUTTON_PIN A5 // select the button pin 
 #define LED_PIN 13 
 
-#include "Pattern.h"
-//#include "SpinningRainbow.h"
-#include "PingPong.h"
-#include "Metronome.h"
-#include "Solid.h"
-#include "Sparkle.h"
-#include "Fire.h"
-#include "Pulse.h"
-#include "MovingMound.h"
+#include "src/Pattern.h"
+#include "src/SpinningRainbow.h"
+#include "src/PingPong.h"
+#include "src/Metronome.h"
+#include "src/Solid.h"
+#include "src/Sparkle.h"
+#include "src/Fire.h"
+#include "src/Pulse.h"
+#include "src/MovingMound.h"
 
 /* KEEP IN SYNC */
-#define NUM_PATTERNS 7
+#define NUM_PATTERNS 8
 
 enum pattern_type {
   SPINNING_RAINBOW,
@@ -31,38 +30,41 @@ enum pattern_type {
   SOLID,
   SPARKLE,
   FIRE,
-  PULSE
+  PULSE,
+  MOVING_MOUND
 };
 /* KEEP IN SYNC */
 
+
 //*****************************************************
-// Variables
+// Variable Definitions 
 //*****************************************************
 // array used to display patterns
 CRGB leds[NUM_LEDS];
-int activePatternIndex;
-//Pattern* activePattern;
-//Pattern* activePattern2;
-MovingMound* activePattern;
-MovingMound* activePattern2;
+LEDSegment all = LEDSegment(leds, 0, NUM_LEDS-1);
+LEDSegment middle = LEDSegment(leds, 5, 15);
+//LEDSegment packLeft = LEDSegment(leds, 0, 11);
+//LEDSegment packRight = LEDSegment(leds, 23, 12); // reversed
+//LEDSegment packHoop = LEDSegment(leds, 0, 23);
 
+//LEDSegment patchOne = LEDSegment(leds, 24, 28);
+//LEDSegment patchTwo = LEDSegment(leds, 33, 29); // reversed
+//LEDSegment patchThree = LEDSegment(leds, 34, 38);
+
+int activePatternIndex;
 CRGB activeColor;
-int blitInterval;
-int blitInterval2;
+
+#define MAX_ACTIVE_PATTERNS 5
+Pattern* activePatternSegments[MAX_ACTIVE_PATTERNS];
+long lastBlit[MAX_ACTIVE_PATTERNS];
+int numActivePatternSegments;
 int brightness;
 bool paused;
-long lastBlit;
-long lastBlit2;
+
 int potValue; 
 int buttonState = 0;         // variable for reading the pushbutton status
 
-#define BUF_SIZE 256
-// buffer for incoming commands
-size_t messageLength;
-size_t bytesRead;
-bool inMessage;
-char message[BUF_SIZE];
-
+bool colorChanged;
 
 
 
@@ -70,61 +72,29 @@ char message[BUF_SIZE];
 // Setup
 //*****************************************************
 void setup() {
+
+  // Initialize Serial 
   Serial.begin(115200);
-  messageLength = 0;
-  bytesRead = 0;
-  inMessage = false;
-  Serial.println("Hello LED Program");
-  
+  Serial.println("Hello LED Controller");
+
+  // Initialize Pins
   pinMode(BUTTON_PIN, INPUT_PULLUP);
   pinMode(LED_PIN, OUTPUT);
   
+
+// Initialize LEDs
   brightness = 255;
   paused = false;
+  colorChanged = false;
   activePatternIndex = 5;
   activeColor = CRGB::White;
-  
+
   FastLED.addLeds<LED_TYPE, DATA_PIN, CLOCK_PIN, COLOR_ORDER>(leds, NUM_LEDS);
   FastLED.setMaxPowerInVoltsAndMilliamps(5, 2400); 
   FastLED.setBrightness(brightness);
   clearLeds();
-
-  // Shape agnostic functions
-  //activePattern = new Pulse(leds,NUM_LEDS);
-  // activePattern = new Solid(leds,NUM_LEDS);
-  //activePattern = new PingPong(leds,NUM_LEDS);
-  activePattern = new MovingMound(leds,NUM_LEDS,3,10);
-  activePattern->setColor(CRGB::Blue);
-  activePattern->setUpdateInterval(100);
-  activePattern->setOverwrite(false); 
-  activePattern2 = new MovingMound(leds,NUM_LEDS,3);
-  activePattern2->setColor(CRGB::Red);
-  activePattern2->setOverwrite(false); 
-  //activePattern2->setUpdateInterval(50); 
-  // Needs 39 LEDS
-  //activePattern = new SpinningRainbow(leds);
-  //activePattern = new Metronome(leds);
-  //activePattern = new Sparkle(leds);
-  //activePattern = new Fire(leds);
-  
-  lastBlit = millis();
-  lastBlit2 = lastBlit;
-  blitInterval = activePattern->getUpdateInterval();
-  blitInterval2 = activePattern2->getUpdateInterval();
-  // If no periodic update, initialize update 
-  /*if (blitInterval == -1){
-     activePattern->blit();
-  }*/
-  
-  Serial.println("Hello LED Program2");
+  setPattern(MOVING_MOUND);
 }
-
-void printMessage() {
-  Serial.print("Command: ");
-  message[bytesRead] = '\0';
-  Serial.println(message);
-}
-
 //*****************************************************
 // Loop
 //*****************************************************
@@ -132,26 +102,29 @@ void loop()
 { 
   potValue = analogRead(POT_PIN); // read the state of the pushbutton value      
   buttonState = digitalRead(BUTTON_PIN); // read the state of the pushbutton value
-  
+
+  // Update pattern s
   long time = millis();
-
-  // Update pattern 1
-  if (activePattern != nullptr && !paused &&
-      blitInterval != -1 && (time - lastBlit) >= blitInterval) {
-    activePattern->blit();
+  if (numActivePatternSegments != 0 && !paused) {
+    for (int i = 0; i < numActivePatternSegments; i++) {
+      Pattern* p = activePatternSegments[i];
+      int interval = p->getUpdateInterval();
+      if (interval != -1 && (time - lastBlit[i]) >= interval) {
+        p->blit();
+        lastBlit[i] = time;
+      }
+    }
     FastLED.show();
-    lastBlit = time;
+    //Serial.println("test");
   }
 
-  // Update pattern 2
-  if (activePattern2 != nullptr && !paused &&
-      blitInterval2 != -1 && (time - lastBlit2) >= blitInterval2) {
-    activePattern2->blit();
-    FastLED.show();
-    lastBlit2 = time;
-    Serial.println(blitInterval2);
-  }
   FastLED.delay(10);
+
+  /*if (time>5000 && !colorChanged){
+    activePatternSegments[0]->setColor(CRGB::Red);
+    activePatternSegments[2]->setColor(CRGB::Red);
+    colorChanged=true; 
+  }*/
 }
 
 
@@ -159,10 +132,68 @@ void loop()
 //*****************************************************
 // Functions
 //*****************************************************
+void setPattern(pattern_type p) {
+  for (int i = 0; i < numActivePatternSegments; i++) {
+    delete activePatternSegments[i];
+  }
+  switch (p) {
+    case SPINNING_RAINBOW:
+      activePatternSegments[0] = new SpinningRainbow(all, 10);
+      //activePatternSegments[1] = new SpinningRainbow(patchOne, 20);
+      //activePatternSegments[2] = new SpinningRainbow(patchTwo, 20);
+      //activePatternSegments[3] = new SpinningRainbow(patchThree, 20);
+      numActivePatternSegments = 1;
+      break;
+    case PING_PONG:
+      activePatternSegments[0] = new PingPong(middle);
+      numActivePatternSegments = 1;
+      break;
+    case SOLID:
+      activePatternSegments[0] = new Solid(all);
+      numActivePatternSegments = 1;
+      break;
+    case SPARKLE:
+      activePatternSegments[0] = new Sparkle(all);
+      numActivePatternSegments = 1;
+      break;
+    case FIRE:
+      activePatternSegments[0] = new Fire(all);
+      //activePatternSegments[1] = new Fire(packRight);
+      numActivePatternSegments = 1;
+      break;
+    case PULSE:
+      activePatternSegments[0] = new Pulse(all);
+      numActivePatternSegments = 1;
+      break;
+    case MOVING_MOUND:
+        activePatternSegments[0] = new MovingMound(all,3,0);
+        activePatternSegments[0]->setColor(CRGB::Blue);
+        activePatternSegments[0]->setUpdateInterval(100);
+        static_cast <MovingMound*>(activePatternSegments[0])->setBounce(false); 
+
+        activePatternSegments[1] = new MovingMound(all,2,0);
+        activePatternSegments[1]->setColor(CRGB::Red);
+        activePatternSegments[1]->setUpdateInterval(50);
+        static_cast <MovingMound*>(activePatternSegments[1])->setBounce(false); 
+
+        activePatternSegments[2] = new MovingMound(all,1,0);
+        activePatternSegments[2]->setColor(CRGB::Green);
+        activePatternSegments[2]->setUpdateInterval(50);
+        static_cast <MovingMound*>(activePatternSegments[2])->setBounce(true); 
+
+        numActivePatternSegments = 3;
+  }
+  long currentTime = millis();
+  for (int i = 0; i < numActivePatternSegments; i++) {
+    //activePatternSegments[i]->setColor(activeColor);
+    activePatternSegments[i]->blit();
+    lastBlit[i] = currentTime;
+  }  
+}
+
+
 void clearLeds() {
    for (int i = 0; i < NUM_LEDS; i++) leds[i] = CRGB::Black;
    FastLED.show();
 }
-
-
 
