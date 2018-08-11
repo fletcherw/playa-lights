@@ -8,7 +8,7 @@
 #define CLOCK_PIN 12
 #define POT_PIN  A4    // select the input pin for the potentiometer
 #define BUTTON_PIN A5 // select the button pin 
-#define LED_PIN 13 
+#define LED_PIN 13
 
 #include "src/Pattern.h"
 #include "src/SpinningRainbow.h"
@@ -19,9 +19,10 @@
 #include "src/Fire.h"
 #include "src/Pulse.h"
 #include "src/MovingMound.h"
+#include "src/Meteor.h"
 
 /* KEEP IN SYNC */
-#define NUM_PATTERNS 8
+#define NUM_PATTERNS 9
 
 enum pattern_type {
   SPINNING_RAINBOW,
@@ -31,17 +32,18 @@ enum pattern_type {
   SPARKLE,
   FIRE,
   PULSE,
-  MOVING_MOUND
+  MOVING_MOUND,
+  METEOR
 };
 /* KEEP IN SYNC */
 
 
 //*****************************************************
-// Variable Definitions 
+// Variable Definitions
 //*****************************************************
 // array used to display patterns
 CRGB leds[NUM_LEDS];
-LEDSegment all = LEDSegment(leds, 0, NUM_LEDS-1);
+LEDSegment all = LEDSegment(leds, 0, NUM_LEDS - 1);
 LEDSegment middle = LEDSegment(leds, 5, 15);
 //LEDSegment packLeft = LEDSegment(leds, 0, 11);
 //LEDSegment packRight = LEDSegment(leds, 23, 12); // reversed
@@ -61,7 +63,7 @@ int numActivePatternSegments;
 int brightness;
 bool paused;
 
-int potValue; 
+int potValue;
 int buttonState = 0;         // variable for reading the pushbutton status
 
 bool colorChanged;
@@ -73,16 +75,16 @@ bool colorChanged;
 //*****************************************************
 void setup() {
 
-  // Initialize Serial 
+  // Initialize Serial
   Serial.begin(115200);
   Serial.println("Hello LED Controller");
 
   // Initialize Pins
   pinMode(BUTTON_PIN, INPUT_PULLUP);
   pinMode(LED_PIN, OUTPUT);
-  
 
-// Initialize LEDs
+
+  // Initialize LEDs
   brightness = 255;
   paused = false;
   colorChanged = false;
@@ -90,17 +92,17 @@ void setup() {
   activeColor = CRGB::White;
 
   FastLED.addLeds<LED_TYPE, DATA_PIN, CLOCK_PIN, COLOR_ORDER>(leds, NUM_LEDS);
-  FastLED.setMaxPowerInVoltsAndMilliamps(5, 2400); 
+  FastLED.setMaxPowerInVoltsAndMilliamps(5, 2400);
   FastLED.setBrightness(brightness);
   clearLeds();
-  setPattern(MOVING_MOUND);
+  setPattern(METEOR);
 }
 //*****************************************************
 // Loop
 //*****************************************************
-void loop() 
-{ 
-  potValue = analogRead(POT_PIN); // read the state of the pushbutton value      
+void loop()
+{
+  potValue = analogRead(POT_PIN); // read the state of the pushbutton value
   buttonState = digitalRead(BUTTON_PIN); // read the state of the pushbutton value
 
   // Update pattern s
@@ -123,8 +125,8 @@ void loop()
   /*if (time>5000 && !colorChanged){
     activePatternSegments[0]->setColor(CRGB::Red);
     activePatternSegments[2]->setColor(CRGB::Red);
-    colorChanged=true; 
-  }*/
+    colorChanged=true;
+    }*/
 }
 
 
@@ -166,34 +168,39 @@ void setPattern(pattern_type p) {
       numActivePatternSegments = 1;
       break;
     case MOVING_MOUND:
-        activePatternSegments[0] = new MovingMound(all,3,0);
-        activePatternSegments[0]->setColor(CRGB::Blue);
-        activePatternSegments[0]->setUpdateInterval(100);
-        static_cast <MovingMound*>(activePatternSegments[0])->setBounce(false); 
+      activePatternSegments[0] = new MovingMound(all, 3, 0);
+      activePatternSegments[0]->setColor(CRGB::Blue);
+      activePatternSegments[0]->setUpdateInterval(100);
+      static_cast <MovingMound*>(activePatternSegments[0])->setBounce(false);
 
-        activePatternSegments[1] = new MovingMound(all,2,0);
-        activePatternSegments[1]->setColor(CRGB::Red);
-        activePatternSegments[1]->setUpdateInterval(50);
-        static_cast <MovingMound*>(activePatternSegments[1])->setBounce(false); 
+      activePatternSegments[1] = new MovingMound(all, 2, 0);
+      activePatternSegments[1]->setColor(CRGB::Red);
+      activePatternSegments[1]->setUpdateInterval(50);
+      static_cast <MovingMound*>(activePatternSegments[1])->setBounce(false);
 
-        activePatternSegments[2] = new MovingMound(all,1,0);
-        activePatternSegments[2]->setColor(CRGB::Green);
-        activePatternSegments[2]->setUpdateInterval(50);
-        static_cast <MovingMound*>(activePatternSegments[2])->setBounce(true); 
+      activePatternSegments[2] = new MovingMound(all, 1, 0);
+      activePatternSegments[2]->setColor(CRGB::Green);
+      activePatternSegments[2]->setUpdateInterval(50);
+      static_cast <MovingMound*>(activePatternSegments[2])->setBounce(true);
 
-        numActivePatternSegments = 3;
+      numActivePatternSegments = 3;
+      break;
+    case METEOR:
+      activePatternSegments[0] = new Meteor(all);
+      numActivePatternSegments = 1;
+      break;
   }
   long currentTime = millis();
   for (int i = 0; i < numActivePatternSegments; i++) {
     //activePatternSegments[i]->setColor(activeColor);
     activePatternSegments[i]->blit();
     lastBlit[i] = currentTime;
-  }  
+  }
 }
 
 
 void clearLeds() {
-   for (int i = 0; i < NUM_LEDS; i++) leds[i] = CRGB::Black;
-   FastLED.show();
+  for (int i = 0; i < NUM_LEDS; i++) leds[i] = CRGB::Black;
+  FastLED.show();
 }
 
