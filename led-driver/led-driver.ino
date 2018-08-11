@@ -30,6 +30,11 @@ enum pattern_type {
 };
 /* ^^^ KEEP IN SYNC ^^^ */
 
+enum driver_mode {
+  BAG = 'G',
+  BIKE = 'K'
+};
+
 // array used to display patterns
 CRGB leds[NUM_LEDS];
 
@@ -49,6 +54,7 @@ pattern_type activePattern;
 CRGB activeColor;
 byte brightness;
 bool paused;
+driver_mode mode;
 
 // data related to running patterns
 #define MAX_ACTIVE_PATTERNS 5
@@ -70,9 +76,10 @@ void setup() {
   bytesRead = 0;
   inMessage = false;
 
+  activeColor = CRGB::White;
   brightness = 255;
   paused = false;
-  activeColor = CRGB::White;
+  mode = BAG;
   
   FastLED.addLeds<LED_TYPE, LED_DATA_PIN, COLOR_ORDER>(leds, NUM_LEDS);
   FastLED.setMaxPowerInVoltsAndMilliamps(5, 2400); 
@@ -175,13 +182,18 @@ void handleCommand() {
       break;
     }
     case 'G': {
-      Serial1.write('\6');
+      Serial1.write('\7');
       Serial1.write(paused ? '0' : '1');
+      Serial1.write(mode);
       Serial1.write(brightness);
       Serial1.write(activeColor.red);
       Serial1.write(activeColor.green);
       Serial1.write(activeColor.blue);
       Serial1.write(activePattern);
+      break;
+    }
+    case 'M': {
+      mode = (driver_mode) message[1];
       break;
     }
     case 'P': {
