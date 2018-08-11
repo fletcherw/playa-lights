@@ -1,5 +1,5 @@
-#ifndef LEDSEGMENT_H_
-#define LEDSEGMENT_H_
+#ifndef LEDSEGMENT_H
+#define LEDSEGMENT_H
 
 #include "FastLED.h"
 

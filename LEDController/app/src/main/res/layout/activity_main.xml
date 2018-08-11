@@ -30,7 +30,7 @@
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
     android:layout_marginStart="16dp"
-    android:layout_marginTop="16dp"
+    android:layout_marginTop="32dp"
     android:text="@string/led_power"
     android:textSize="18sp"
     app:layout_constraintStart_toStartOf="parent"
@@ -89,7 +89,7 @@
     app:layout_constraintTop_toBottomOf="@+id/powerText" />
 
   <TextView
-    android:id="@+id/dimmerPercentText"
+    android:id="@+id/brightnessPercentText"
     android:layout_width="50dp"
     android:layout_height="wrap_content"
     android:layout_marginEnd="16dp"
@@ -100,13 +100,13 @@
     app:layout_constraintEnd_toEndOf="parent" />
 
   <SeekBar
-    android:id="@+id/dimmerBar"
+    android:id="@+id/brightnessBar"
     android:layout_width="0dp"
     android:layout_height="30dp"
     android:layout_marginEnd="8dp"
     android:layout_marginStart="8dp"
     app:layout_constraintBottom_toBottomOf="@+id/dimmerLabel"
-    app:layout_constraintEnd_toStartOf="@+id/dimmerPercentText"
+    app:layout_constraintEnd_toStartOf="@+id/brightnessPercentText"
     app:layout_constraintHorizontal_bias="1.0"
     app:layout_constraintStart_toEndOf="@+id/dimmerLabel"
     app:layout_constraintTop_toTopOf="@+id/dimmerLabel" />
@@ -222,5 +222,33 @@
     app:layout_constraintDimensionRatio="1:1"
     app:layout_constraintEnd_toEndOf="parent"
     app:layout_constraintTop_toTopOf="@+id/redSlider" />
+
+  <Switch
+    android:id="@+id/driverModeSwitch"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:layout_marginEnd="16dp"
+    app:layout_constraintBaseline_toBaselineOf="@+id/bagLabel"
+    app:layout_constraintEnd_toStartOf="@+id/bikeLabel" />
+
+  <TextView
+    android:id="@+id/bikeLabel"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:layout_marginEnd="16dp"
+    android:text="@string/bike"
+    android:textSize="18sp"
+    app:layout_constraintBaseline_toBaselineOf="@+id/driverModeSwitch"
+    app:layout_constraintEnd_toEndOf="parent" />
+
+  <TextView
+    android:id="@+id/bagLabel"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:layout_marginEnd="16dp"
+    android:text="@string/bag"
+    android:textSize="18sp"
+    app:layout_constraintBaseline_toBaselineOf="@+id/powerSwitch"
+    app:layout_constraintEnd_toStartOf="@+id/driverModeSwitch" />
 
 </android.support.constraint.ConstraintLayout>

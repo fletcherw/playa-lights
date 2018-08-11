@@ -10,9 +10,11 @@ Syntax: C followed by 3-byte RGB color value
 
 Name: Get state
 Syntax: G
-Returns:
-First byte: '0' if power is off, '1' if power is on.
-Second byte: Selected pattern index (hex)
+Returns: Various state values
+
+Name: Set mode
+Syntax: M0 or M1
+Effects: MG sets to bag mode, MK sets to bike mode
 
 Name: Power
 Syntax: P0 or P1

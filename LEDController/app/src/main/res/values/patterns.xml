@@ -3,10 +3,10 @@
   <string-array name="patterns_array">
     <item>Spinning Rainbow</item>
     <item>Ping Pong</item>
-    <item>Metronome</item>
     <item>Solid</item>
     <item>Sparkle</item>
     <item>Fire</item>
     <item>Pulse</item>
+    <item>Meteor</item>
   </string-array>
 </resources>
