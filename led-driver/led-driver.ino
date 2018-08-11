@@ -1,5 +1,3 @@
-#include <SoftwareSerial.h>
-
 #include "FastLED.h"
 
 #define LED_DATA_PIN 12
@@ -7,14 +5,14 @@
 #define NUM_LEDS 39
 #define LED_TYPE WS2812B
 
-#include "Pattern.h"
-#include "SpinningRainbow.h"
-#include "PingPong.h"
-#include "Metronome.h"
-#include "Solid.h"
-#include "Sparkle.h"
-#include "Fire.h"
-#include "Pulse.h"
+#include "src/patterns/Pattern.h"
+#include "src/patterns/SpinningRainbow.h"
+#include "src/patterns/PingPong.h"
+#include "src/patterns/Metronome.h"
+#include "src/patterns/Solid.h"
+#include "src/patterns/Sparkle.h"
+#include "src/patterns/Fire.h"
+#include "src/patterns/Pulse.h"
 
 /* KEEP IN SYNC */
 #define NUM_PATTERNS 7
