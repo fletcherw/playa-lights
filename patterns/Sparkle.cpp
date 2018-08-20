@@ -1,8 +1,7 @@
 #include "Sparkle.h"
 Sparkle::Sparkle(LEDSegment leds) :
     leds_(leds),
-    lastBlit_(millis()),
-    color_(CRGB::Red)
+    lastBlit_(millis())
   {
     states_ = new pixelState[leds_.length()];
     for (int i = 0; i < leds_.length(); i++) {

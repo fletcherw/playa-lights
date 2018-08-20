@@ -1,6 +1,16 @@
-#include "Meteor.h"
+#include "RandomMeteor.h"
 
-void Meteor::blit() {
+RandomMeteor::RandomMeteor(LEDSegment leds, int size) :
+    leds_(leds),
+    index_(0),
+    delta_(1),
+    size_(size)
+{
+  updateInterval_ = 60;
+  color_ = CHSV(random(255), 255, 255);
+}
+
+void RandomMeteor::blit() {
   // fade brightness all LEDs one step
   for (int j = 0; j < leds_.length(); j++) {
     if (random(10) > 3) {
@@ -18,9 +28,10 @@ void Meteor::blit() {
   if (index_ == -1 || index_ == leds_.length()) {
     delta_ *= -1;
     index_ += 2 * delta_;
+    color_ = CHSV(random(255), 255, 255); 
   }
 }
 
-void Meteor::setColor(CRGB color) {
-  color_ = color;
+CRGB RandomMeteor::getColor() {
+  return color_;
 }

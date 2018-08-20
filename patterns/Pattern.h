@@ -16,6 +16,10 @@ public:
     return updateInterval_;
   }
   
+  virtual CRGB getColor() {
+    return CRGB::Black;
+  }
+
   virtual void setColor(CRGB c) {}
 
 protected:

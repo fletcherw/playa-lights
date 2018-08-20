@@ -36,6 +36,53 @@ public class MainActivity
     View.OnClickListener,
     SeekBar.OnSeekBarChangeListener
 {
+  enum Pattern {
+    SPINNING_RAINBOW,
+    PING_PONG,
+    SOLID,
+    SPARKLE,
+    FIRE,
+    PULSE,
+    METEOR,
+    MOVING_MOUND,
+    RANDOM_METEOR,
+    THEATER_CHASE,
+    RIPPLE;
+
+    public static Pattern[] cachedValues = null;
+
+    public static Pattern fromInt(int i) {
+      if (cachedValues == null) cachedValues = Pattern.values();
+      return cachedValues[i];
+    }
+
+    @Override
+    public String toString() {
+      char[] chars = super.toString().toCharArray();
+      for (int i = 0; i < chars.length; i++) {
+        if (chars[i] == '_') chars[i] = ' ';
+        else if (i != 0 && chars[i - 1] != ' ' && Character.isLetter(chars[i])) {
+          chars[i] = Character.toLowerCase(chars[i]);
+        }
+      }
+      return String.valueOf(chars);
+    }
+  }
+
+  private boolean canSetColor(Pattern p) {
+    switch (p) {
+      case PING_PONG:
+      case SOLID:
+      case PULSE:
+      case METEOR:
+      case THEATER_CHASE:
+      case RIPPLE:
+        return true;
+      default:
+        return false;
+    }
+  }
+
   enum BTState {
     DISCONNECTED,
     CONNECTING,
@@ -94,8 +141,9 @@ public class MainActivity
     patternSpinner = findViewById(R.id.patternSpinner);
     patternSpinner.setOnItemSelectedListener(this);
 
-    ArrayAdapter<CharSequence> adapter = ArrayAdapter.createFromResource(this,
-        R.array.patterns_array, android.R.layout.simple_spinner_item);
+    // Populate spinner with Pattern enum values
+    ArrayAdapter<Pattern> adapter =
+        new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, Pattern.values());
 
     // Specify the layout to use when the list of choices appears
     adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
@@ -443,8 +491,7 @@ public class MainActivity
   }
 
   protected void syncColorSliderState() {
-    boolean colorEnabled = selectedPattern == 1 || selectedPattern == 2 ||
-                           selectedPattern == 5 || selectedPattern == 6;
+    boolean colorEnabled = canSetColor(Pattern.fromInt(selectedPattern));
     redBar.setEnabled(colorEnabled);
     greenBar.setEnabled(colorEnabled);
     blueBar.setEnabled(colorEnabled);

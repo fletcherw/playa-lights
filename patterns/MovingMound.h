@@ -7,28 +7,26 @@
 
 class MovingMound : public Pattern {
 public:
-  MovingMound(LEDSegment leds, int width, int index_init =0);
+  MovingMound(LEDSegment leds, int radius, int indexInit = 0);
   ~MovingMound();
   void blit();
-  int  getUpdateInterval();
-  void setUpdateInterval(int updateInterval);
   void setColor(CRGB c);
-  void setOverwrite(int is_overwrite);
-  void setBounce(int is_bounce); 
-  
+  void setOverwrite(bool overwrite);
+  void setBounce(bool bounce);
+
 private:
   LEDSegment leds_;
   CRGB color_;
   int index_;
   int delta_;
-  int width_;
-  bool is_overwrite_;
-  bool is_bounce_;
-  int* moundArray_; 
+  int radius_;
+  bool overwrite_;
+  bool bounce_;
+  uint8_t* moundArray_;
+
   void updateLED(int index, CRGB c);
-  void createMoundArray(); 
+  void createMoundArray();
   void clearLED(int index, CRGB c);
 };
 
 #endif
-

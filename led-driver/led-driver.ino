@@ -8,7 +8,6 @@
 #include "src/patterns/Pattern.h"
 #include "src/patterns/LEDSegment.h"
 
-/* vvv KEEP IN SYNC vvv */
 #include "src/patterns/SpinningRainbow.h"
 #include "src/patterns/PingPong.h"
 #include "src/patterns/Solid.h"
@@ -16,8 +15,10 @@
 #include "src/patterns/Fire.h"
 #include "src/patterns/Pulse.h"
 #include "src/patterns/Meteor.h"
-
-#define NUM_PATTERNS 7
+#include "src/patterns/MovingMound.h"
+#include "src/patterns/RandomMeteor.h"
+#include "src/patterns/TheaterChase.h"
+#include "src/patterns/Ripple.h"
 
 enum pattern_type {
   SPINNING_RAINBOW,
@@ -26,9 +27,14 @@ enum pattern_type {
   SPARKLE,
   FIRE,
   PULSE,
-  METEOR
+  METEOR,
+  MOVING_MOUND,
+  RANDOM_METEOR,
+  THEATER_CHASE,
+  RIPPLE,
+  PATTERN_COUNT, // keep as second-to-last
+  INVALID // keep as last
 };
-/* ^^^ KEEP IN SYNC ^^^ */
 
 enum driver_mode {
   BAG = 'G',
@@ -44,9 +50,13 @@ LEDSegment packLeft = LEDSegment(leds, 0, 11);
 LEDSegment packRight = LEDSegment(leds, 23, 12); // reversed
 LEDSegment packHoop = LEDSegment(leds, 0, 23);
 
+LEDSegment patch = LEDSegment(leds, 24, 38);
 LEDSegment patchOne = LEDSegment(leds, 24, 28);
 LEDSegment patchTwo = LEDSegment(leds, 33, 29); // reversed
 LEDSegment patchThree = LEDSegment(leds, 34, 38);
+
+LEDSegment patchOneTwo = LEDSegment(leds, 24, 33);
+LEDSegment patchTwoThree = LEDSegment(leds, 29, 38);
 
 
 // current pattern settings
@@ -58,8 +68,8 @@ driver_mode mode;
 
 // data related to running patterns
 #define MAX_ACTIVE_PATTERNS 5
-int numActivePatternSegments;
-Pattern* activePatternSegments[MAX_ACTIVE_PATTERNS];
+int numPatternSegments;
+Pattern* patternSegments[MAX_ACTIVE_PATTERNS];
 long lastBlit[MAX_ACTIVE_PATTERNS];
 
 // buffer for incoming commands
@@ -71,6 +81,7 @@ char message[BUF_SIZE];
 
 void setup() {
   Serial.begin(9600);
+  Serial.println("LED Driver is starting");
   Serial1.begin(9600);
   messageLength = 0;
   bytesRead = 0;
@@ -80,22 +91,28 @@ void setup() {
   brightness = 255;
   paused = false;
   mode = BAG;
-  
+
   FastLED.addLeds<LED_TYPE, LED_DATA_PIN, COLOR_ORDER>(leds, NUM_LEDS);
-  FastLED.setMaxPowerInVoltsAndMilliamps(5, 2400); 
+  FastLED.setMaxPowerInVoltsAndMilliamps(5, 2400);
   FastLED.setBrightness(brightness);
   clearLeds();
 
-  setPattern(METEOR);
+  activePattern = INVALID;
+  numPatternSegments = 0;
+  setPattern(RIPPLE);
+  Serial.println("LED Driver has finished setup");
 }
 
 void loop() {
   long time = millis();
-  if (numActivePatternSegments != 0 && !paused) {
-    for (int i = 0; i < numActivePatternSegments; i++) {
-      Pattern* p = activePatternSegments[i];
+  if (numPatternSegments != 0 && !paused) {
+    for (int i = 0; i < numPatternSegments; i++) {
+      Pattern* p = patternSegments[i];
       int interval = p->getUpdateInterval();
       if (interval != -1 && (time - lastBlit[i]) >= interval) {
+        if (activePattern == RANDOM_METEOR && i == 1) {
+          p->setColor(patternSegments[0]->getColor());
+        }
         p->blit();
         lastBlit[i] = time;
       }
@@ -109,61 +126,106 @@ void loop() {
 void setPattern(pattern_type p) {
   if (activePattern == p) return;
   activePattern = p;
-  for (int i = 0; i < numActivePatternSegments; i++) {
-    delete activePatternSegments[i];
+  for (int i = 0; i < numPatternSegments; i++) {
+    delete patternSegments[i];
   }
   switch (p) {
     case SPINNING_RAINBOW:
-      activePatternSegments[0] = new SpinningRainbow(packHoop, 75);
-      activePatternSegments[1] = new SpinningRainbow(patchOne, 20);
-      activePatternSegments[2] = new SpinningRainbow(patchTwo, 20);
-      activePatternSegments[3] = new SpinningRainbow(patchThree, 20);
-      numActivePatternSegments = 4;
+      patternSegments[0] = new SpinningRainbow(packHoop, 75);
+      patternSegments[1] = new SpinningRainbow(patchOne, 20);
+      patternSegments[2] = new SpinningRainbow(patchTwo, 20);
+      patternSegments[3] = new SpinningRainbow(patchThree, 20);
+      numPatternSegments = 4;
       break;
     case PING_PONG:
-      activePatternSegments[0] = new PingPong(packHoop);
-      activePatternSegments[1] = new PingPong(patchOne);
-      activePatternSegments[2] = new PingPong(LEDSegment(leds, 29, 33));
-      activePatternSegments[3] = new PingPong(patchThree);
-      activePatternSegments[1]->setUpdateInterval(100);
-      activePatternSegments[2]->setUpdateInterval(100);
-      activePatternSegments[3]->setUpdateInterval(100);
-      numActivePatternSegments = 4;
+      patternSegments[0] = new PingPong(packHoop);
+      patternSegments[1] = new PingPong(patchOne);
+      patternSegments[2] = new PingPong(LEDSegment(leds, 29, 33));
+      patternSegments[3] = new PingPong(patchThree);
+      patternSegments[1]->setUpdateInterval(100);
+      patternSegments[2]->setUpdateInterval(100);
+      patternSegments[3]->setUpdateInterval(100);
+      numPatternSegments = 4;
       break;
     case SOLID:
-      activePatternSegments[0] = new Solid(all);
-      numActivePatternSegments = 1;
+      patternSegments[0] = new Solid(all);
+      numPatternSegments = 1;
       break;
     case SPARKLE:
-      activePatternSegments[0] = new Sparkle(all);
-      numActivePatternSegments = 1;
+      patternSegments[0] = new Sparkle(all);
+      numPatternSegments = 1;
       break;
     case FIRE:
-      activePatternSegments[0] = new Fire(packLeft);
-      activePatternSegments[1] = new Fire(packRight);
-      activePatternSegments[2] = new Pulse(patchOne);
-      activePatternSegments[3] = new Pulse(patchTwo);
-      activePatternSegments[4] = new Pulse(patchThree);
-      activePatternSegments[2]->setColor(CRGB::Red);
-      activePatternSegments[3]->setColor(CRGB::Red);
-      activePatternSegments[4]->setColor(CRGB::Red);
-      numActivePatternSegments = 5;
+      patternSegments[0] = new Fire(packLeft);
+      patternSegments[1] = new Fire(packRight);
+      patternSegments[2] = new Pulse(patch);
+      patternSegments[2]->setColor(CRGB::Red);
+      numPatternSegments = 3;
       break;
     case PULSE:
-      activePatternSegments[0] = new Pulse(all);
-      numActivePatternSegments = 1;
+      patternSegments[0] = new Pulse(all);
+      numPatternSegments = 1;
       break;
-    case METEOR:
-      activePatternSegments[0] = new Meteor(packHoop);
-      numActivePatternSegments = 1;
+    case METEOR: {
+      patternSegments[0] = new Meteor(packHoop);
+      MovingMound *m;
+      m = new MovingMound(patchOneTwo, 3);
+      m->setBounce(true);
+      m->setUpdateInterval(100);
+      patternSegments[1] = m;
+
+      m = new MovingMound(patchTwoThree, 3);
+      m->setBounce(true);
+      m->setUpdateInterval(100);
+      patternSegments[2] = m;
+
+      numPatternSegments = 3;
+      break;
+    }
+    case MOVING_MOUND: {
+      MovingMound *m;
+      m = new MovingMound(packHoop, 7);
+      m->setUpdateInterval(100);
+      patternSegments[0] = m;
+
+      m = new MovingMound(packHoop, 7);
+      m->setUpdateInterval(80);
+      m->setColor(CRGB::Green);
+      m->setBounce(true);
+      patternSegments[1] = m;
+
+      m = new MovingMound(packHoop, 7);
+      m->setUpdateInterval(60);
+      m->setColor(CRGB::Blue);
+      patternSegments[2] = m;
+
+      numPatternSegments = 3;
+      break;
+    }
+    case RANDOM_METEOR:
+      patternSegments[0] = new RandomMeteor(packHoop);
+      patternSegments[1] = new Pulse(patch);
+      numPatternSegments = 2;
+      break;
+    case THEATER_CHASE:
+      patternSegments[0] = new TheaterChase(packHoop);
+      patternSegments[1] = new Pulse(patch);
+      numPatternSegments = 2;
+      break;
+    case RIPPLE:
+      patternSegments[0] = new Ripple(packHoop);
+      numPatternSegments = 1;
       break;
   }
   long currentTime = millis();
-  for (int i = 0; i < numActivePatternSegments; i++) {
-    if (usesUserColor(p)) activePatternSegments[i]->setColor(activeColor);
-    activePatternSegments[i]->blit();
+  if (activePattern == RANDOM_METEOR) {
+    patternSegments[1]->setColor(patternSegments[0]->getColor());
+  }
+  for (int i = 0; i < numPatternSegments; i++) {
+    if (usesUserColor(p)) patternSegments[i]->setColor(activeColor);
+    patternSegments[i]->blit();
     lastBlit[i] = currentTime;
-  }  
+  }
 }
 
 void handleCommand() {
@@ -175,8 +237,8 @@ void handleCommand() {
     }
     case 'C': {
       activeColor = CRGB(message[1], message[2], message[3]);
-      for (int i = 0; i < numActivePatternSegments; i++) {
-        activePatternSegments[i]->setColor(activeColor);
+      for (int i = 0; i < numPatternSegments; i++) {
+        patternSegments[i]->setColor(activeColor);
       }
       FastLED.show();
       break;
@@ -211,7 +273,7 @@ void handleCommand() {
     }
     case 'S': {
       if (!checkLength(2)) break;
-      if (message[1] >= NUM_PATTERNS) {
+      if (message[1] >= PATTERN_COUNT) {
         Serial.println("Unsupported pattern received for 'S'");
         printMessage();
       } else {

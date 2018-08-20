@@ -22,7 +22,6 @@ private:
   LEDSegment leds_;
   pixelState* states_;
   long lastBlit_;
-  CRGB color_;
 };
 
 #endif
