@@ -251,4 +251,27 @@
     app:layout_constraintBaseline_toBaselineOf="@+id/powerSwitch"
     app:layout_constraintEnd_toStartOf="@+id/driverModeSwitch" />
 
+  <TextView
+    android:id="@+id/errorLabel"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:layout_marginBottom="16dp"
+    android:layout_marginStart="16dp"
+    android:text="@string/error_label"
+    android:textSize="18sp"
+    app:layout_constraintBottom_toBottomOf="parent"
+    app:layout_constraintStart_toStartOf="parent" />
+
+  <TextView
+    android:id="@+id/errorText"
+    android:layout_width="0dp"
+    android:layout_height="wrap_content"
+    android:layout_marginEnd="16dp"
+    android:layout_marginStart="16dp"
+    android:text="@string/error_default"
+    android:textSize="14sp"
+    app:layout_constraintBaseline_toBaselineOf="@+id/errorLabel"
+    app:layout_constraintEnd_toEndOf="parent"
+    app:layout_constraintStart_toEndOf="@+id/errorLabel" />
+
 </android.support.constraint.ConstraintLayout>

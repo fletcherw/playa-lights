@@ -8,7 +8,6 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.os.AsyncTask;
 import android.support.v7.app.AppCompatActivity;
@@ -73,6 +72,8 @@ public class MainActivity
   private TextView greenLabel;
   private TextView blueLabel;
   private TextView colorBox;
+
+  private TextView errorText;
 
   public MainActivity() {
     btBroadcastReceiver = null;
@@ -148,6 +149,8 @@ public class MainActivity
     blueBar.setProgress(blue);
     updateColorBox();
 
+    // Error label
+    errorText = findViewById(R.id.errorText);
 
     // Bluetooth
     btStatusText = findViewById(R.id.btStatusText);
@@ -160,20 +163,7 @@ public class MainActivity
     btBroadcastReceiver = new BTBroadcastReceiver(this);
     registerReceiver(btBroadcastReceiver, filter);
 
-    BluetoothAdapter btAdapter = BluetoothAdapter.getDefaultAdapter();
-    switch (btAdapter.getState()){
-      case BluetoothAdapter.STATE_OFF:
-      case BluetoothAdapter.STATE_TURNING_OFF:
-        Intent enableAdapter = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
-        startActivityForResult(enableAdapter,1);
-        // Broadcast Listener will attempt BT connection when BT is fully on
-        break;
-      case BluetoothAdapter.STATE_ON:
-        new BluetoothConnectTask(this, btAdapter).execute();
-        break;
-      case BluetoothAdapter.STATE_TURNING_ON:
-        break;
-    }
+    checkBTState();
   }
 
   protected void setDriverInputEnabled(boolean enabled) {
@@ -213,6 +203,23 @@ public class MainActivity
     }
   }
 
+  private void checkBTState() {
+    BluetoothAdapter btAdapter = BluetoothAdapter.getDefaultAdapter();
+    switch (btAdapter.getState()){
+      case BluetoothAdapter.STATE_OFF:
+      case BluetoothAdapter.STATE_TURNING_OFF:
+        Intent enableAdapter = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
+        startActivityForResult(enableAdapter,1);
+        // Broadcast Listener will attempt BT connection when BT is fully on
+        break;
+      case BluetoothAdapter.STATE_ON:
+        new BluetoothConnectTask(this, btAdapter).execute();
+        break;
+      case BluetoothAdapter.STATE_TURNING_ON:
+        break;
+    }
+  }
+
   public static class BTBroadcastReceiver extends BroadcastReceiver {
     WeakReference<MainActivity> parentActivity;
 
@@ -229,11 +236,20 @@ public class MainActivity
         final int state = intent.getIntExtra(BluetoothAdapter.EXTRA_STATE,
             BluetoothAdapter.ERROR);
         switch (state) {
-          case BluetoothAdapter.STATE_ON:
+          case BluetoothAdapter.STATE_ON: {
             MainActivity parentActivity = this.parentActivity.get();
             if (parentActivity == null) return;
             new BluetoothConnectTask(parentActivity, BluetoothAdapter.getDefaultAdapter()).execute();
             break;
+          }
+          case BluetoothAdapter.STATE_DISCONNECTED:
+          case BluetoothAdapter.STATE_DISCONNECTING:
+          case BluetoothAdapter.STATE_OFF:
+          case BluetoothAdapter.STATE_TURNING_OFF: {
+            MainActivity parentActivity = this.parentActivity.get();
+            if (parentActivity == null) return;
+            parentActivity.setBTState(BTState.DISCONNECTED);
+          }
           default:
             break;
         }
@@ -241,7 +257,17 @@ public class MainActivity
     }
   }
 
-  public static class BluetoothConnectTask extends AsyncTask<Void, Void, BluetoothSocket>
+  private static class Errorable<T> {
+    public T result;
+    public String error;
+
+    public Errorable() {
+      this.error = null;
+      this.result = null;
+    }
+  }
+
+  public static class BluetoothConnectTask extends AsyncTask<Void, Void, Errorable<BluetoothSocket>>
   {
     WeakReference<MainActivity> parentActivity;
     WeakReference<BluetoothAdapter> btAdapter;
@@ -249,6 +275,7 @@ public class MainActivity
     BluetoothConnectTask(MainActivity parentActivity, BluetoothAdapter btAdapter) {
       this.parentActivity = new WeakReference<>(parentActivity);
       this.btAdapter = new WeakReference<>(btAdapter);
+      parentActivity.errorText.setText(R.string.error_default);
     }
 
     @Override
@@ -260,9 +287,13 @@ public class MainActivity
     }
 
     @Override
-    protected BluetoothSocket doInBackground(Void... voids) {
+    protected Errorable<BluetoothSocket> doInBackground(Void... voids) {
+      Errorable<BluetoothSocket> result = new Errorable<>();
       BluetoothAdapter btAdapter = this.btAdapter.get();
-      if (btAdapter == null) return null;
+      if (btAdapter == null) {
+        result.error = "No Bluetooth Adapter Found";
+        return result;
+      }
       Set<BluetoothDevice> bondedDevices = btAdapter.getBondedDevices();
       final String DEVICE_ADDRESS = "20:17:05:08:53:67";
 
@@ -270,8 +301,8 @@ public class MainActivity
       boolean found = false;
 
       if (bondedDevices.isEmpty()) {
-        System.out.println("No devices found");
-        return null;
+        result.error = "No devices found";
+        return result;
       } else {
         for (BluetoothDevice iterator : bondedDevices) {
           if (iterator.getAddress().equals(DEVICE_ADDRESS)) {
@@ -283,31 +314,37 @@ public class MainActivity
       }
 
       if (!found) {
-        System.out.println("No matching device found");
-        return null;
+        result.error = "No matching device found";
+        return result;
       }
 
       UUID port_uuid = new UUID(0x0000110100001000L, 0x800000805F9B34FBL);
       try {
         BluetoothSocket btSocket = device.createRfcommSocketToServiceRecord(port_uuid);
         btSocket.connect();
-        return btSocket;
+        result.result = btSocket;
       } catch (IOException e) {
-        return null;
+        result.error = e.getMessage();
       }
+      return result;
     }
 
     @Override
-    protected void onPostExecute(BluetoothSocket btSocket) {
+    protected void onPostExecute(Errorable<BluetoothSocket> result) {
       MainActivity parentActivity = this.parentActivity.get();
       if (parentActivity == null) return;
-      if (btSocket == null) {
+      if (result == null) {
         parentActivity.setBTState(BTState.DISCONNECTED);
-      } else {
+      } else if (result.error != null) {
+        parentActivity.setBTState(BTState.DISCONNECTED);
+        parentActivity.errorText.setText(result.error);
+      } else if (result.result != null) {
+        BluetoothSocket btSocket = result.result;
         parentActivity.btSocket = btSocket;
         try {
           parentActivity.btOut = btSocket.getOutputStream();
         } catch (IOException e) {
+          parentActivity.errorText.setText(e.getMessage());
           parentActivity.setBTState(BTState.DISCONNECTED);
         }
         parentActivity.setBTState(BTState.CONNECTED);
@@ -326,7 +363,7 @@ public class MainActivity
     public int pattern;
   }
 
-  public static class StateUpdateTask extends AsyncTask<Void, Void, CurrentState>
+  public static class StateUpdateTask extends AsyncTask<Void, Void, Errorable<CurrentState>>
   {
     private WeakReference<BluetoothSocket> btSocket;
     private WeakReference<MainActivity> parentActivity;
@@ -334,12 +371,17 @@ public class MainActivity
     private StateUpdateTask(BluetoothSocket btSocket, MainActivity parentActivity) {
       this.btSocket = new WeakReference<>(btSocket);
       this.parentActivity = new WeakReference<>(parentActivity);
+      parentActivity.errorText.setText(R.string.error_default);
     }
 
     @Override
-    protected CurrentState doInBackground(Void... voids) {
+    protected Errorable<CurrentState> doInBackground(Void... voids) {
       BluetoothSocket btSocket = this.btSocket.get();
-      if (btSocket == null) return null;
+      Errorable<CurrentState> result = new Errorable<>();
+      if (btSocket == null) {
+        result.error = "BluetoothSocket is null";
+        return result;
+      }
       try {
         btSocket.getOutputStream().write(0x1);
         btSocket.getOutputStream().write('G');
@@ -353,10 +395,6 @@ public class MainActivity
           read += last_read;
         }
 
-        for (int i = 0; i < read; i++) {
-          System.out.println(((int) buffer[i]) & 0xff);
-        }
-
         CurrentState s = new CurrentState();
         s.enabled = buffer[0] == '1';
         s.driverMode = buffer[1] == 'K';
@@ -366,36 +404,41 @@ public class MainActivity
         s.blue = buffer[5] & 0xff;
         s.pattern = buffer[6] & 0xff;
 
-        return s;
+        result.result = s;
+        return result;
       } catch (IOException e) {
-        return null;
+        result.error = e.getMessage();
+        return result;
       }
     }
 
     @Override
-    protected void onPostExecute(CurrentState s) {
+    protected void onPostExecute(Errorable<CurrentState> result) {
       MainActivity parentActivity = this.parentActivity.get();
-      if (s == null) {
-        if (parentActivity == null) return;
+      if (parentActivity == null) return;
+      if (result == null) {
         parentActivity.setBTState(BTState.DISCONNECTED);
-        return;
+      } else if (result.error != null) {
+        parentActivity.setBTState(BTState.DISCONNECTED);
+        parentActivity.errorText.setText(result.error);
+      } else if (result.result != null) {
+        CurrentState s = result.result;
+        parentActivity.power = s.enabled;
+        parentActivity.driverMode = s.driverMode;
+        parentActivity.brightness = s.brightness;
+        parentActivity.red = s.red;
+        parentActivity.green = s.green;
+        parentActivity.blue = s.blue;
+
+        parentActivity.powerSwitch.setChecked(s.enabled);
+        parentActivity.brightnessBar.setProgress(s.brightness);
+        parentActivity.redBar.setProgress(s.red);
+        parentActivity.greenBar.setProgress(s.green);
+        parentActivity.blueBar.setProgress(s.blue);
+        parentActivity.patternSpinner.setSelection(s.pattern, true);
+        parentActivity.selectedPattern = s.pattern;
+        parentActivity.syncColorSliderState();
       }
-
-      parentActivity.power = s.enabled;
-      parentActivity.driverMode = s.driverMode;
-      parentActivity.brightness = s.brightness;
-      parentActivity.red = s.red;
-      parentActivity.green = s.green;
-      parentActivity.blue = s.blue;
-
-      parentActivity.powerSwitch.setChecked(s.enabled);
-      parentActivity.brightnessBar.setProgress(s.brightness);
-      parentActivity.redBar.setProgress(s.red);
-      parentActivity.greenBar.setProgress(s.green);
-      parentActivity.blueBar.setProgress(s.blue);
-      parentActivity.patternSpinner.setSelection(s.pattern, true);
-      parentActivity.selectedPattern = s.pattern;
-      parentActivity.syncColorSliderState();
     }
   }
 
@@ -423,6 +466,7 @@ public class MainActivity
       selectedPattern = pos;
       syncColorSliderState();
     } catch (IOException e) {
+      errorText.setText(e.getMessage());
       patternSpinner.setSelection(selectedPattern);
       setBTState(BTState.DISCONNECTED);
     }
@@ -443,6 +487,7 @@ public class MainActivity
         btOut.write('P');
         btOut.write(state ? '1' : '0');
       } catch (IOException e) {
+        errorText.setText(e.getMessage());
         powerSwitch.setChecked(power);
         setBTState(BTState.DISCONNECTED);
       }
@@ -457,6 +502,7 @@ public class MainActivity
         btOut.write('M');
         btOut.write(state ? 'K' : 'G');
       } catch (IOException e) {
+        errorText.setText(e.getMessage());
         driverModeSwitch.setChecked(driverMode);
         setBTState(BTState.DISCONNECTED);
       }
@@ -468,8 +514,7 @@ public class MainActivity
   public void onClick(View view) {
     if (view == btActionButton) {
       if (btState == BTState.DISCONNECTED) {
-        new BluetoothConnectTask(this, BluetoothAdapter.getDefaultAdapter()).execute();
-        btActionButton.setActivated(false);
+        checkBTState();
       } else if (btState == BTState.CONNECTED) {
         new StateUpdateTask(this.btSocket, this).execute();
       }
@@ -517,6 +562,7 @@ public class MainActivity
         btOut.write(brightnessBar.getProgress());
         brightness = brightnessBar.getProgress();
       } catch (IOException e) {
+        errorText.setText(e.getMessage());
         brightnessBar.setProgress(brightness);
         setBTState(BTState.DISCONNECTED);
       }
@@ -536,6 +582,7 @@ public class MainActivity
         green = greenBar.getProgress();
         blue = blueBar.getProgress();
       } catch (IOException e) {
+        errorText.setText(e.getMessage());
         redBar.setProgress(red);
         greenBar.setProgress(green);
         blueBar.setProgress(blue);
