@@ -1,9 +1,8 @@
 #include "Fire.h"
 
-int cooling = 15;
 int sparking = 55;
 
-Fire::Fire(LEDSegment leds) : leds_(leds)
+Fire::Fire(LEDSegment leds, int cooling) : leds_(leds), cooling_(cooling)
 {
   updateInterval_ = 55;
   heat_ = new byte[leds_.length()]; 
@@ -15,7 +14,7 @@ Fire::~Fire() {
 
 void Fire::blit() {
   for (int i = 0; i < leds_.length(); i++) {
-    int cooldown = random(0, ((15 * 10) / 12) + 2);
+    int cooldown = random(0, ((cooling_ * 10) / 12) + 2);
    
     if (cooldown > heat_[i]) {
       heat_[i] = 0;

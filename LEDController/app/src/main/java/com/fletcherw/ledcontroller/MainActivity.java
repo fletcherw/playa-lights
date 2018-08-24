@@ -224,6 +224,12 @@ public class MainActivity
     checkBTState();
   }
 
+  @Override
+  protected void onResume() {
+    super.onResume();
+    if (btState == BTState.CONNECTED) new StateUpdateTask(btSocket, this).execute();
+  }
+
   protected void setDriverInputEnabled(boolean enabled) {
     patternSpinner.setEnabled(enabled);
     brightnessBar.setEnabled(enabled);
@@ -456,14 +462,14 @@ public class MainActivity
         }
 
         CurrentState s = new CurrentState();
-        s.enabled = buffer[0] == '1';
-        s.driverMode = buffer[1] == 'K';
-        s.randomMode = buffer[2] == '1';
-        s.brightness = buffer[3] & 0xff; // account for signedness
-        s.red = buffer[4] & 0xff;
-        s.green = buffer[5] & 0xff;
-        s.blue = buffer[6] & 0xff;
-        s.pattern = buffer[7] & 0xff;
+        s.enabled = buffer[1] == '1';
+        s.driverMode = buffer[2] == 'K';
+        s.randomMode = buffer[3] == '1';
+        s.brightness = buffer[4] & 0xff; // account for signedness
+        s.red = buffer[5] & 0xff;
+        s.green = buffer[6] & 0xff;
+        s.blue = buffer[7] & 0xff;
+        s.pattern = buffer[8] & 0xff;
 
         result.result = s;
         return result;

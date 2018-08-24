@@ -6,7 +6,7 @@
 
 class Fire : public Pattern {
 public:
-  Fire(LEDSegment leds);
+  Fire(LEDSegment leds, int cooling=15);
   ~Fire();
   void blit();
   
@@ -15,6 +15,7 @@ private:
   
   LEDSegment leds_;
   byte* heat_;
+  int cooling_;
 };
 
 #endif
