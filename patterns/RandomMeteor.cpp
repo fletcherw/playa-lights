@@ -28,6 +28,7 @@ void RandomMeteor::blit() {
   if (index_ == -1 || index_ == leds_.length()) {
     delta_ *= -1;
     index_ += 2 * delta_;
+    for (int i = 0; i < leds_.length(); i++) leds_[i] = CRGB::Black;
     color_ = CHSV(random(255), 255, 255); 
   }
 }

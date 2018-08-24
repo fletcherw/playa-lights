@@ -86,7 +86,7 @@
     android:text="@string/dim_label"
     android:textSize="18sp"
     app:layout_constraintStart_toStartOf="parent"
-    app:layout_constraintTop_toBottomOf="@+id/powerText" />
+    app:layout_constraintTop_toBottomOf="@+id/randomLabel" />
 
   <TextView
     android:id="@+id/brightnessPercentText"
@@ -273,5 +273,25 @@
     app:layout_constraintBaseline_toBaselineOf="@+id/errorLabel"
     app:layout_constraintEnd_toEndOf="parent"
     app:layout_constraintStart_toEndOf="@+id/errorLabel" />
+
+  <TextView
+    android:id="@+id/randomLabel"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:layout_marginStart="16dp"
+    android:layout_marginTop="16dp"
+    android:text="@string/random_label"
+    android:textSize="18sp"
+    app:layout_constraintStart_toStartOf="parent"
+    app:layout_constraintTop_toBottomOf="@+id/powerText" />
+
+  <Switch
+    android:id="@+id/randomSwitch"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:layout_marginStart="16dp"
+    android:textSize="18sp"
+    app:layout_constraintBaseline_toBaselineOf="@+id/randomLabel"
+    app:layout_constraintStart_toEndOf="@+id/randomLabel" />
 
 </android.support.constraint.ConstraintLayout>

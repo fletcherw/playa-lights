@@ -98,16 +98,20 @@ public class MainActivity
   private int selectedPattern;
   private boolean power;
   private boolean driverMode;
+  private boolean randomMode;
   private int brightness;
   private int red;
   private int green;
   private int blue;
 
+  private TextView btStatusText;
+  private Button btActionButton;
+
   private Spinner patternSpinner;
   private Switch powerSwitch;
   private Switch driverModeSwitch;
-  private TextView btStatusText;
-  private Button btActionButton;
+
+  private Switch randomSwitch;
 
   private SeekBar brightnessBar;
   private TextView brightnessPercentText;
@@ -162,6 +166,12 @@ public class MainActivity
     driverModeSwitch.setOnCheckedChangeListener(this);
     driverMode = false; // False means Backpack mode
     driverModeSwitch.setChecked(driverMode);
+
+    // Random Switch
+    randomSwitch = findViewById(R.id.randomSwitch);
+    randomSwitch.setOnCheckedChangeListener(this);
+    randomMode = false;
+    randomSwitch.setChecked(randomMode);
 
     // Brightness Bar
     brightnessBar = findViewById(R.id.brightnessBar);
@@ -222,6 +232,7 @@ public class MainActivity
     blueBar.setEnabled(enabled);
     driverModeSwitch.setEnabled(enabled);
     powerSwitch.setEnabled(enabled);
+    randomSwitch.setEnabled(enabled);
   }
 
   protected void setBTState(BTState s) {
@@ -404,6 +415,7 @@ public class MainActivity
   public static class CurrentState {
     public boolean enabled;
     public boolean driverMode;
+    public boolean randomMode;
     public int brightness;
     public int red;
     public int green;
@@ -446,11 +458,12 @@ public class MainActivity
         CurrentState s = new CurrentState();
         s.enabled = buffer[0] == '1';
         s.driverMode = buffer[1] == 'K';
-        s.brightness = buffer[2] & 0xff; // account for signedness
-        s.red = buffer[3] & 0xff;
-        s.green = buffer[4] & 0xff;
-        s.blue = buffer[5] & 0xff;
-        s.pattern = buffer[6] & 0xff;
+        s.randomMode = buffer[2] == '1';
+        s.brightness = buffer[3] & 0xff; // account for signedness
+        s.red = buffer[4] & 0xff;
+        s.green = buffer[5] & 0xff;
+        s.blue = buffer[6] & 0xff;
+        s.pattern = buffer[7] & 0xff;
 
         result.result = s;
         return result;
@@ -473,12 +486,15 @@ public class MainActivity
         CurrentState s = result.result;
         parentActivity.power = s.enabled;
         parentActivity.driverMode = s.driverMode;
+        parentActivity.randomMode = s.randomMode;
         parentActivity.brightness = s.brightness;
         parentActivity.red = s.red;
         parentActivity.green = s.green;
         parentActivity.blue = s.blue;
 
         parentActivity.powerSwitch.setChecked(s.enabled);
+        parentActivity.driverModeSwitch.setChecked(s.driverMode);
+        parentActivity.randomSwitch.setChecked(s.randomMode);
         parentActivity.brightnessBar.setProgress(s.brightness);
         parentActivity.redBar.setProgress(s.red);
         parentActivity.greenBar.setProgress(s.green);
@@ -554,6 +570,21 @@ public class MainActivity
         setBTState(BTState.DISCONNECTED);
       }
       driverMode = state;
+    } else if (compoundButton == randomSwitch) {
+      if (btState != BTState.CONNECTED) {
+        randomSwitch.setChecked(randomMode);
+        return;
+      }
+      try {
+        btOut.write('\2');
+        btOut.write('R');
+        btOut.write(state ? '1' : '0');
+      } catch (IOException e) {
+        errorText.setText(e.getMessage());
+        randomSwitch.setChecked(randomMode);
+        setBTState(BTState.DISCONNECTED);
+      }
+      randomMode = state;
     }
   }
 

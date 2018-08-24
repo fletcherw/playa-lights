@@ -18,4 +18,5 @@
   <string name="bag">Bag</string>
   <string name="error_label">Error:</string>
   <string name="error_default">None</string>
+  <string name="random_label">Random:</string>
 </resources>

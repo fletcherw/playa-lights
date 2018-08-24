@@ -1,9 +1,13 @@
 #include "FastLED.h"
 
 #define LED_DATA_PIN 12
+#define BUTTON_PIN 6
 #define COLOR_ORDER GRB
+#define NUM_BAG_LEDS 39
+#define NUM_BIKE_LEDS 39
 #define NUM_LEDS 39
 #define LED_TYPE WS2812B
+#define RANDOM_SWITCH_INTERVAL 60000
 
 #include "src/patterns/Pattern.h"
 #include "src/patterns/LEDSegment.h"
@@ -42,8 +46,9 @@ enum driver_mode {
 };
 
 // array used to display patterns
-CRGB leds[NUM_LEDS];
+CRGB leds[NUM_BIKE_LEDS];
 
+// Bag Segments
 LEDSegment all = LEDSegment(leds, 0, 38);
 
 LEDSegment packLeft = LEDSegment(leds, 0, 11);
@@ -58,48 +63,49 @@ LEDSegment patchThree = LEDSegment(leds, 34, 38);
 LEDSegment patchOneTwo = LEDSegment(leds, 24, 33);
 LEDSegment patchTwoThree = LEDSegment(leds, 29, 38);
 
-
+ 
 // current pattern settings
-pattern_type activePattern;
-CRGB activeColor;
-byte brightness;
-bool paused;
-driver_mode mode;
+pattern_type activePattern = INVALID;
+CRGB activeColor = CRGB::White;
+byte brightness = 255;
+bool paused = false;
+driver_mode mode = BAG;
+bool randomSwitch = true;
+long lastRandomSwitch;
 
 // data related to running patterns
 #define MAX_ACTIVE_PATTERNS 5
-int numPatternSegments;
+int numPatternSegments = 0;
 Pattern* patternSegments[MAX_ACTIVE_PATTERNS];
 long lastBlit[MAX_ACTIVE_PATTERNS];
 
 // buffer for incoming commands
 #define BUF_SIZE 128
-size_t messageLength;
-size_t bytesRead;
-bool inMessage;
+size_t messageLength = 0;
+size_t bytesRead = 0;
+bool inMessage = false;
 char message[BUF_SIZE];
+
+// push button
+int buttonState;
+int lastButtonState = LOW;
+unsigned long lastDebounceTime;
+unsigned long debounceDelay = 50;
 
 void setup() {
   Serial.begin(9600);
   Serial.println("LED Driver is starting");
   Serial1.begin(9600);
-  messageLength = 0;
-  bytesRead = 0;
-  inMessage = false;
 
-  activeColor = CRGB::White;
-  brightness = 255;
-  paused = false;
-  mode = BAG;
+  pinMode(BUTTON_PIN, INPUT);
+  lastRandomSwitch = millis();
 
   FastLED.addLeds<LED_TYPE, LED_DATA_PIN, COLOR_ORDER>(leds, NUM_LEDS);
   FastLED.setMaxPowerInVoltsAndMilliamps(5, 2400);
   FastLED.setBrightness(brightness);
   clearLeds();
 
-  activePattern = INVALID;
-  numPatternSegments = 0;
-  setPattern(RIPPLE);
+  setPattern(SPINNING_RAINBOW);
   Serial.println("LED Driver has finished setup");
 }
 
@@ -117,10 +123,34 @@ void loop() {
         lastBlit[i] = time;
       }
     }
-    FastLED.show();
   }
+
+  if (randomSwitch && (time - lastRandomSwitch > RANDOM_SWITCH_INTERVAL)) {
+    pattern_type next = activePattern;
+    while (next == activePattern) next = (pattern_type) random(PATTERN_COUNT);
+    setPattern(next);
+    lastRandomSwitch = time;
+  }
+
   receiveBluetooth();
-  FastLED.delay(10);
+  checkButton();
+  if (!paused) FastLED.delay(10);
+  else delay(10);
+}
+
+void checkButton() {
+  int reading = digitalRead(BUTTON_PIN);
+  if (reading != lastButtonState) lastDebounceTime = millis();
+
+  if ((millis() - lastDebounceTime) > debounceDelay) {
+    if (reading != buttonState) buttonState = reading;
+    if (buttonState == HIGH) {
+      paused = !paused;
+      if (paused) clearLeds();
+      }
+  }
+
+  lastButtonState = reading;
 }
 
 void setPattern(pattern_type p) {
@@ -129,93 +159,193 @@ void setPattern(pattern_type p) {
   for (int i = 0; i < numPatternSegments; i++) {
     delete patternSegments[i];
   }
-  switch (p) {
-    case SPINNING_RAINBOW:
-      patternSegments[0] = new SpinningRainbow(packHoop, 75);
-      patternSegments[1] = new SpinningRainbow(patchOne, 20);
-      patternSegments[2] = new SpinningRainbow(patchTwo, 20);
-      patternSegments[3] = new SpinningRainbow(patchThree, 20);
-      numPatternSegments = 4;
-      break;
-    case PING_PONG:
-      patternSegments[0] = new PingPong(packHoop);
-      patternSegments[1] = new PingPong(patchOne);
-      patternSegments[2] = new PingPong(LEDSegment(leds, 29, 33));
-      patternSegments[3] = new PingPong(patchThree);
-      patternSegments[1]->setUpdateInterval(100);
-      patternSegments[2]->setUpdateInterval(100);
-      patternSegments[3]->setUpdateInterval(100);
-      numPatternSegments = 4;
-      break;
-    case SOLID:
-      patternSegments[0] = new Solid(all);
-      numPatternSegments = 1;
-      break;
-    case SPARKLE:
-      patternSegments[0] = new Sparkle(all);
-      numPatternSegments = 1;
-      break;
-    case FIRE:
-      patternSegments[0] = new Fire(packLeft);
-      patternSegments[1] = new Fire(packRight);
-      patternSegments[2] = new Pulse(patch);
-      patternSegments[2]->setColor(CRGB::Red);
-      numPatternSegments = 3;
-      break;
-    case PULSE:
-      patternSegments[0] = new Pulse(all);
-      numPatternSegments = 1;
-      break;
-    case METEOR: {
-      patternSegments[0] = new Meteor(packHoop);
-      MovingMound *m;
-      m = new MovingMound(patchOneTwo, 3);
-      m->setBounce(true);
-      m->setUpdateInterval(100);
-      patternSegments[1] = m;
+  if (mode == BAG) {
+    switch (p) {
+      case SPINNING_RAINBOW:
+        patternSegments[0] = new SpinningRainbow(packHoop, 75);
+        patternSegments[1] = new SpinningRainbow(patchOne, 20);
+        patternSegments[2] = new SpinningRainbow(patchTwo, 20);
+        patternSegments[3] = new SpinningRainbow(patchThree, 20);
+        numPatternSegments = 4;
+        break;
+      case PING_PONG:
+        patternSegments[0] = new PingPong(packHoop);
+        patternSegments[1] = new PingPong(patchOne);
+        patternSegments[2] = new PingPong(LEDSegment(leds, 29, 33));
+        patternSegments[3] = new PingPong(patchThree);
+        patternSegments[1]->setUpdateInterval(100);
+        patternSegments[2]->setUpdateInterval(100);
+        patternSegments[3]->setUpdateInterval(100);
+        numPatternSegments = 4;
+        break;
+      case SOLID:
+        patternSegments[0] = new Solid(all);
+        numPatternSegments = 1;
+        break;
+      case SPARKLE:
+        patternSegments[0] = new Sparkle(all);
+        numPatternSegments = 1;
+        break;
+      case FIRE:
+        patternSegments[0] = new Fire(packLeft);
+        patternSegments[1] = new Fire(packRight);
+        patternSegments[2] = new Pulse(patch);
+        patternSegments[2]->setColor(CRGB::Red);
+        numPatternSegments = 3;
+        break;
+      case PULSE:
+        patternSegments[0] = new Pulse(all);
+        numPatternSegments = 1;
+        break;
+      case METEOR: {
+        Meteor *m;
+        m = new Meteor(packHoop, 5);
+        patternSegments[0] = m;
 
-      m = new MovingMound(patchTwoThree, 3);
-      m->setBounce(true);
-      m->setUpdateInterval(100);
-      patternSegments[2] = m;
+        MovingMound *mm;
+        mm = new MovingMound(patchOneTwo, 3);
+        mm->setBounce(true);
+        mm->setUpdateInterval(100);
+        patternSegments[1] = mm;
 
-      numPatternSegments = 3;
-      break;
+        mm = new MovingMound(patchTwoThree, 3);
+        mm->setBounce(true);
+        mm->setUpdateInterval(100);
+        patternSegments[2] = mm;
+
+        numPatternSegments = 3;
+        break;
+      }
+      case MOVING_MOUND: {
+        MovingMound *m;
+        m = new MovingMound(packHoop, 7);
+        m->setUpdateInterval(100);
+        patternSegments[0] = m;
+
+        m = new MovingMound(packHoop, 7);
+        m->setUpdateInterval(80);
+        m->setColor(CRGB::Green);
+        m->setBounce(true);
+        patternSegments[1] = m;
+
+        m = new MovingMound(packHoop, 7);
+        m->setUpdateInterval(60);
+        m->setColor(CRGB::Blue);
+        patternSegments[2] = m;
+
+        numPatternSegments = 3;
+        break;
+      }
+      case RANDOM_METEOR:
+        patternSegments[0] = new RandomMeteor(packHoop, 4);
+        patternSegments[1] = new Pulse(patch);
+        numPatternSegments = 2;
+        break;
+      case THEATER_CHASE:
+        patternSegments[0] = new TheaterChase(packHoop);
+        patternSegments[1] = new Pulse(patch);
+        numPatternSegments = 2;
+        break;
+      case RIPPLE:
+        patternSegments[0] = new Ripple(packHoop);
+        numPatternSegments = 1;
+        break;
+      default:
+        numPatternSegments = 0;
+        break;
     }
-    case MOVING_MOUND: {
-      MovingMound *m;
-      m = new MovingMound(packHoop, 7);
-      m->setUpdateInterval(100);
-      patternSegments[0] = m;
+  } else if (mode == BIKE) {
+    switch (p) {
+      case SPINNING_RAINBOW:
+        patternSegments[0] = new SpinningRainbow(packHoop, 75);
+        patternSegments[1] = new SpinningRainbow(patchOne, 20);
+        patternSegments[2] = new SpinningRainbow(patchTwo, 20);
+        patternSegments[3] = new SpinningRainbow(patchThree, 20);
+        numPatternSegments = 4;
+        break;
+      case PING_PONG:
+        patternSegments[0] = new PingPong(packHoop);
+        patternSegments[1] = new PingPong(patchOne);
+        patternSegments[2] = new PingPong(LEDSegment(leds, 29, 33));
+        patternSegments[3] = new PingPong(patchThree);
+        patternSegments[1]->setUpdateInterval(100);
+        patternSegments[2]->setUpdateInterval(100);
+        patternSegments[3]->setUpdateInterval(100);
+        numPatternSegments = 4;
+        break;
+      case SOLID:
+        patternSegments[0] = new Solid(all);
+        numPatternSegments = 1;
+        break;
+      case SPARKLE:
+        patternSegments[0] = new Sparkle(all);
+        numPatternSegments = 1;
+        break;
+      case FIRE:
+        patternSegments[0] = new Fire(packLeft);
+        patternSegments[1] = new Fire(packRight);
+        patternSegments[2] = new Pulse(patch);
+        patternSegments[2]->setColor(CRGB::Red);
+        numPatternSegments = 3;
+        break;
+      case PULSE:
+        patternSegments[0] = new Pulse(all);
+        numPatternSegments = 1;
+        break;
+      case METEOR: {
+        patternSegments[0] = new Meteor(packHoop);
+        MovingMound *m;
+        m = new MovingMound(patchOneTwo, 3);
+        m->setBounce(true);
+        m->setUpdateInterval(100);
+        patternSegments[1] = m;
 
-      m = new MovingMound(packHoop, 7);
-      m->setUpdateInterval(80);
-      m->setColor(CRGB::Green);
-      m->setBounce(true);
-      patternSegments[1] = m;
+        m = new MovingMound(patchTwoThree, 3);
+        m->setBounce(true);
+        m->setUpdateInterval(100);
+        patternSegments[2] = m;
 
-      m = new MovingMound(packHoop, 7);
-      m->setUpdateInterval(60);
-      m->setColor(CRGB::Blue);
-      patternSegments[2] = m;
+        numPatternSegments = 3;
+        break;
+      }
+      case MOVING_MOUND: {
+        MovingMound *m;
+        m = new MovingMound(packHoop, 7);
+        m->setUpdateInterval(100);
+        patternSegments[0] = m;
 
-      numPatternSegments = 3;
-      break;
+        m = new MovingMound(packHoop, 7);
+        m->setUpdateInterval(80);
+        m->setColor(CRGB::Green);
+        m->setBounce(true);
+        patternSegments[1] = m;
+
+        m = new MovingMound(packHoop, 7);
+        m->setUpdateInterval(60);
+        m->setColor(CRGB::Blue);
+        patternSegments[2] = m;
+
+        numPatternSegments = 3;
+        break;
+      }
+      case RANDOM_METEOR:
+        patternSegments[0] = new RandomMeteor(packHoop);
+        patternSegments[1] = new Pulse(patch);
+        numPatternSegments = 2;
+        break;
+      case THEATER_CHASE:
+        patternSegments[0] = new TheaterChase(packHoop);
+        patternSegments[1] = new Pulse(patch);
+        numPatternSegments = 2;
+        break;
+      case RIPPLE:
+        patternSegments[0] = new Ripple(packHoop);
+        numPatternSegments = 1;
+        break;
+      default:
+        numPatternSegments = 0;
+        break;
     }
-    case RANDOM_METEOR:
-      patternSegments[0] = new RandomMeteor(packHoop);
-      patternSegments[1] = new Pulse(patch);
-      numPatternSegments = 2;
-      break;
-    case THEATER_CHASE:
-      patternSegments[0] = new TheaterChase(packHoop);
-      patternSegments[1] = new Pulse(patch);
-      numPatternSegments = 2;
-      break;
-    case RIPPLE:
-      patternSegments[0] = new Ripple(packHoop);
-      numPatternSegments = 1;
-      break;
   }
   long currentTime = millis();
   if (activePattern == RANDOM_METEOR) {
@@ -223,9 +353,20 @@ void setPattern(pattern_type p) {
   }
   for (int i = 0; i < numPatternSegments; i++) {
     if (usesUserColor(p)) patternSegments[i]->setColor(activeColor);
-    patternSegments[i]->blit();
     lastBlit[i] = currentTime;
   }
+}
+
+void sendState() {
+  Serial1.write((char) 0x8);
+  Serial1.write(paused ? '0' : '1');
+  Serial1.write(mode);
+  Serial1.write(randomSwitch ? '1' : '0');
+  Serial1.write(brightness);
+  Serial1.write(activeColor.red);
+  Serial1.write(activeColor.green);
+  Serial1.write(activeColor.blue);
+  Serial1.write(activePattern);
 }
 
 void handleCommand() {
@@ -244,18 +385,24 @@ void handleCommand() {
       break;
     }
     case 'G': {
-      Serial1.write('\7');
-      Serial1.write(paused ? '0' : '1');
-      Serial1.write(mode);
-      Serial1.write(brightness);
-      Serial1.write(activeColor.red);
-      Serial1.write(activeColor.green);
-      Serial1.write(activeColor.blue);
-      Serial1.write(activePattern);
+      sendState();
       break;
     }
     case 'M': {
-      mode = (driver_mode) message[1];
+      driver_mode newMode = (driver_mode) message[1];
+      if (mode == newMode) break;
+      mode = newMode;
+
+      if (mode == BAG) {
+        FastLED[0].setLeds(leds, NUM_BAG_LEDS);
+      } else if (mode == BIKE) {
+        FastLED[0].setLeds(leds, NUM_BIKE_LEDS);
+      }
+
+      // force reinitialization of the pattern so that we will switch to bike or bag appropriate version;
+      pattern_type lastPattern = activePattern;
+      setPattern(INVALID);
+      setPattern(lastPattern);
       break;
     }
     case 'P': {
@@ -271,6 +418,19 @@ void handleCommand() {
       }
       break;
     }
+    case 'R': {
+      if (!checkLength(2)) break;
+      if (message[1] == '0') {
+        randomSwitch = false;
+      } else if (message[1] == '1') {
+        randomSwitch = true;
+        lastRandomSwitch = millis();
+      } else {
+        Serial.println("Unsupported 'R' code received");
+        printMessage();
+      }
+      break;
+    }
     case 'S': {
       if (!checkLength(2)) break;
       if (message[1] >= PATTERN_COUNT) {
@@ -281,7 +441,7 @@ void handleCommand() {
         if (newPattern == activePattern) break;
         clearLeds();
         setPattern(newPattern);
-        FastLED.show();
+        if (!paused) FastLED.show();
       }
       break;
     }
@@ -319,10 +479,7 @@ bool usesUserColor(pattern_type p) {
     case SOLID:
     case SPARKLE:
     case PULSE:
-    case METEOR:
       return true;
-    case SPINNING_RAINBOW:
-    case FIRE:
     default:
       return false;
   }

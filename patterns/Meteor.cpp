@@ -11,7 +11,7 @@ void Meteor::blit() {
   // draw meteor
   for (int j = 0; j < size_; j++) {
     if (0 <= index_ - j && index_ - j < leds_.length()) {
-      leds_[index_ - j] = color_;
+      leds_[index_ - j] += color_;
     }
   }
   index_ += delta_;
