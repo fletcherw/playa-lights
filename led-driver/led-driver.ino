@@ -5,7 +5,7 @@
 #define COLOR_ORDER GRB
 #define NUM_BAG_LEDS 39
 #define NUM_BIKE_LEDS 59
-#define NUM_LEDS 59 
+#define NUM_LEDS 59
 #define LED_TYPE WS2812B
 #define RANDOM_SWITCH_INTERVAL 60000
 
@@ -66,7 +66,7 @@ LEDSegment patchTwoThree = LEDSegment(leds, 29, 38);
 // Bike Segments
 LEDSegment bikeAll = LEDSegment(leds, 0, 58);
 
- 
+
 // current pattern settings
 pattern_type activePattern = INVALID;
 CRGB activeColor = CRGB::White;
@@ -92,8 +92,9 @@ char message[BUF_SIZE];
 // push button
 int buttonState;
 int lastButtonState = LOW;
+unsigned long lastToggleTime;
 unsigned long lastDebounceTime;
-unsigned long debounceDelay = 50;
+unsigned long debounceDelay = 1000;
 
 void setup() {
   Serial.begin(9600);
@@ -102,6 +103,7 @@ void setup() {
 
   pinMode(BUTTON_PIN, INPUT);
   lastRandomSwitch = millis();
+  lastToggleTime = millis();
 
   FastLED.addLeds<LED_TYPE, LED_DATA_PIN, COLOR_ORDER>(leds, NUM_LEDS);
   FastLED.setMaxPowerInVoltsAndMilliamps(5, 2400);
@@ -130,7 +132,7 @@ void loop() {
 
   if (randomSwitch && (time - lastRandomSwitch > RANDOM_SWITCH_INTERVAL)) {
     pattern_type next = activePattern;
-    while (next == activePattern) next = (pattern_type) random(PATTERN_COUNT);
+    while (next == activePattern || next == RIPPLE) next = (pattern_type) random(PATTERN_COUNT);
     clearLeds();
     setPattern(next);
     lastRandomSwitch = time;
@@ -143,15 +145,26 @@ void loop() {
 }
 
 void checkButton() {
+  unsigned long time = millis();
+  if (time - lastToggleTime < 5000) return;
   int reading = digitalRead(BUTTON_PIN);
-  if (reading != lastButtonState) lastDebounceTime = millis();
+  if (reading != lastButtonState) lastDebounceTime = time;
 
-  if ((millis() - lastDebounceTime) > debounceDelay) {
-    if (reading != buttonState) buttonState = reading;
+  if ((time - lastDebounceTime) > debounceDelay) {
+    lastToggleTime = time;
+    if (reading != buttonState) {
+      buttonState = reading;
+      Serial.print("Switched button state to ");
+      Serial.println(reading);
+    }
     if (buttonState == HIGH) {
-      paused = !paused;
-      if (paused) clearLeds();
-      }
+      clearLeds();
+      if (mode == BAG) mode = BIKE;
+      else if (mode == BIKE) mode = BAG;
+      pattern_type lastPattern = activePattern;
+      setPattern(INVALID);
+      setPattern(lastPattern);
+    }
   }
 
   lastButtonState = reading;
