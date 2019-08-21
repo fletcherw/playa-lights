@@ -1,11 +1,3 @@
-#include <SoftwareSerial.h>
-
-// Swap RX/TX connections on bluetooth chip
-//   Pin 10 --> Bluetooth TX
-//   Pin 9 --> Bluetooth RX
-SoftwareSerial mySerial(10, 9); // RX, TX
-
-
 /*
   The posible baudrates are:
     AT+BAUD1-------1200
@@ -27,27 +19,27 @@ void setup()
 {
   Serial.begin(9600);
   Serial.println("Starting config");
-  mySerial.begin(9600);
+  Serial1.begin(9600);
   delay(1000);
 
   // Should respond with OK
-  mySerial.print("AT");
+  Serial1.print("AT");
   waitForResponse();
 
   // Should respond with its version
-  mySerial.print("AT+VERSION");
+  Serial1.print("AT+VERSION");
   waitForResponse();
 
-  // Set pin to 2468 
-  mySerial.print("AT+PIN2468");
+  // Set pin to 2468
+  Serial1.print("AT+PIN2468");
   waitForResponse();
 
-  mySerial.print("AT+BAUD4");
+  Serial1.print("AT+BAUD4");
   waitForResponse();
 
   // Set the name to ROBOT_NAME
-  mySerial.print("AT+NAME");
-  mySerial.print("FletchLight");
+  Serial1.print("AT+NAME");
+  Serial1.print("FletchLight");
   waitForResponse();
 
   Serial.println("Done!");
@@ -55,8 +47,8 @@ void setup()
 
 void waitForResponse() {
     delay(1000);
-    while (mySerial.available()) {
-      Serial.write(mySerial.read());
+    while (Serial1.available()) {
+      Serial.write(Serial1.read());
     }
     Serial.write("\n\n");
 }
