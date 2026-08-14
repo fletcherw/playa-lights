@@ -1,5 +1,6 @@
 package com.fletcherw.ledcontroller;
 
+import android.Manifest;
 import android.annotation.SuppressLint;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
@@ -8,9 +9,13 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.os.AsyncTask;
-import android.support.v7.app.AppCompatActivity;
+import android.os.Build;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.AdapterView;
@@ -221,7 +226,33 @@ public class MainActivity
     btBroadcastReceiver = new BTBroadcastReceiver(this);
     registerReceiver(btBroadcastReceiver, filter);
 
+    requestBluetoothPermissionThenCheckState();
+  }
+
+  private static final int REQUEST_BLUETOOTH_CONNECT = 100;
+
+  private void requestBluetoothPermissionThenCheckState() {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+        && ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT)
+            != PackageManager.PERMISSION_GRANTED) {
+      ActivityCompat.requestPermissions(
+          this, new String[] {Manifest.permission.BLUETOOTH_CONNECT}, REQUEST_BLUETOOTH_CONNECT);
+      return;
+    }
     checkBTState();
+  }
+
+  @Override
+  public void onRequestPermissionsResult(
+      int requestCode, String[] permissions, int[] grantResults) {
+    super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+    if (requestCode == REQUEST_BLUETOOTH_CONNECT
+        && grantResults.length > 0
+        && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+      checkBTState();
+    } else {
+      errorText.setText(R.string.bluetooth_permission_denied);
+    }
   }
 
   @Override

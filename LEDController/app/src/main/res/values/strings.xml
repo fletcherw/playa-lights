@@ -19,4 +19,5 @@
   <string name="error_label">Error:</string>
   <string name="error_default">None</string>
   <string name="random_label">Random:</string>
+  <string name="bluetooth_permission_denied">Bluetooth permission denied</string>
 </resources>
