@@ -17,7 +17,7 @@
     app:layout_constraintStart_toEndOf="@+id/patternLabel"
     app:layout_constraintTop_toBottomOf="@+id/dimmerLabel" />
 
-  <Switch
+  <androidx.appcompat.widget.SwitchCompat
     android:id="@+id/powerSwitch"
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
@@ -224,34 +224,6 @@
     app:layout_constraintEnd_toEndOf="parent"
     app:layout_constraintTop_toTopOf="@+id/redSlider" />
 
-  <Switch
-    android:id="@+id/driverModeSwitch"
-    android:layout_width="wrap_content"
-    android:layout_height="wrap_content"
-    android:layout_marginEnd="16dp"
-    app:layout_constraintBaseline_toBaselineOf="@+id/bagLabel"
-    app:layout_constraintEnd_toStartOf="@+id/bikeLabel" />
-
-  <TextView
-    android:id="@+id/bikeLabel"
-    android:layout_width="wrap_content"
-    android:layout_height="wrap_content"
-    android:layout_marginEnd="16dp"
-    android:text="@string/bike"
-    android:textSize="18sp"
-    app:layout_constraintBaseline_toBaselineOf="@+id/driverModeSwitch"
-    app:layout_constraintEnd_toEndOf="parent" />
-
-  <TextView
-    android:id="@+id/bagLabel"
-    android:layout_width="wrap_content"
-    android:layout_height="wrap_content"
-    android:layout_marginEnd="16dp"
-    android:text="@string/bag"
-    android:textSize="18sp"
-    app:layout_constraintBaseline_toBaselineOf="@+id/powerSwitch"
-    app:layout_constraintEnd_toStartOf="@+id/driverModeSwitch" />
-
   <TextView
     android:id="@+id/errorLabel"
     android:layout_width="wrap_content"
@@ -286,7 +258,7 @@
     app:layout_constraintStart_toStartOf="parent"
     app:layout_constraintTop_toBottomOf="@+id/powerText" />
 
-  <Switch
+  <androidx.appcompat.widget.SwitchCompat
     android:id="@+id/randomSwitch"
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"

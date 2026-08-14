@@ -14,6 +14,7 @@ import android.graphics.Color;
 import android.os.AsyncTask;
 import android.os.Build;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.widget.SwitchCompat;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import android.os.Bundle;
@@ -24,7 +25,6 @@ import android.widget.Button;
 import android.widget.CompoundButton;
 import android.widget.SeekBar;
 import android.widget.Spinner;
-import android.widget.Switch;
 import android.widget.TextView;
 
 import java.io.IOException;
@@ -102,7 +102,6 @@ public class MainActivity
   private BTState btState;
   private int selectedPattern;
   private boolean power;
-  private boolean driverMode;
   private boolean randomMode;
   private int brightness;
   private int red;
@@ -113,10 +112,9 @@ public class MainActivity
   private Button btActionButton;
 
   private Spinner patternSpinner;
-  private Switch powerSwitch;
-  private Switch driverModeSwitch;
+  private SwitchCompat powerSwitch;
 
-  private Switch randomSwitch;
+  private SwitchCompat randomSwitch;
 
   private SeekBar brightnessBar;
   private TextView brightnessPercentText;
@@ -165,12 +163,6 @@ public class MainActivity
     powerSwitch.setOnCheckedChangeListener(this);
     powerSwitch.setChecked(false);
     power = false;
-
-    // Mode Switch
-    driverModeSwitch = findViewById(R.id.driverModeSwitch);
-    driverModeSwitch.setOnCheckedChangeListener(this);
-    driverMode = false; // False means Backpack mode
-    driverModeSwitch.setChecked(driverMode);
 
     // Random Switch
     randomSwitch = findViewById(R.id.randomSwitch);
@@ -267,7 +259,6 @@ public class MainActivity
     redBar.setEnabled(enabled);
     greenBar.setEnabled(enabled);
     blueBar.setEnabled(enabled);
-    driverModeSwitch.setEnabled(enabled);
     powerSwitch.setEnabled(enabled);
     randomSwitch.setEnabled(enabled);
   }
@@ -300,6 +291,12 @@ public class MainActivity
   }
 
   private void checkBTState() {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+        && ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT)
+            != PackageManager.PERMISSION_GRANTED) {
+      errorText.setText(R.string.bluetooth_permission_denied);
+      return;
+    }
     BluetoothAdapter btAdapter = BluetoothAdapter.getDefaultAdapter();
     switch (btAdapter.getState()){
       case BluetoothAdapter.STATE_OFF:
@@ -386,8 +383,16 @@ public class MainActivity
     protected Errorable<BluetoothSocket> doInBackground(Void... voids) {
       Errorable<BluetoothSocket> result = new Errorable<>();
       BluetoothAdapter btAdapter = this.btAdapter.get();
-      if (btAdapter == null) {
+      MainActivity parentActivity = this.parentActivity.get();
+      if (btAdapter == null || parentActivity == null) {
         result.error = "No Bluetooth Adapter Found";
+        return result;
+      }
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+          && ContextCompat.checkSelfPermission(
+                  parentActivity, Manifest.permission.BLUETOOTH_CONNECT)
+              != PackageManager.PERMISSION_GRANTED) {
+        result.error = "Bluetooth permission denied";
         return result;
       }
       Set<BluetoothDevice> bondedDevices = btAdapter.getBondedDevices();
@@ -439,6 +444,10 @@ public class MainActivity
         parentActivity.btSocket = btSocket;
         try {
           parentActivity.btOut = btSocket.getOutputStream();
+          // Always run in bike mode; there is no user-facing driver mode toggle.
+          parentActivity.btOut.write('\2');
+          parentActivity.btOut.write('M');
+          parentActivity.btOut.write('K');
         } catch (IOException e) {
           parentActivity.errorText.setText(e.getMessage());
           parentActivity.setBTState(BTState.DISCONNECTED);
@@ -451,7 +460,6 @@ public class MainActivity
 
   public static class CurrentState {
     public boolean enabled;
-    public boolean driverMode;
     public boolean randomMode;
     public int brightness;
     public int red;
@@ -494,7 +502,6 @@ public class MainActivity
 
         CurrentState s = new CurrentState();
         s.enabled = buffer[1] == '1';
-        s.driverMode = buffer[2] == 'K';
         s.randomMode = buffer[3] == '1';
         s.brightness = buffer[4] & 0xff; // account for signedness
         s.red = buffer[5] & 0xff;
@@ -522,7 +529,6 @@ public class MainActivity
       } else if (result.result != null) {
         CurrentState s = result.result;
         parentActivity.power = s.enabled;
-        parentActivity.driverMode = s.driverMode;
         parentActivity.randomMode = s.randomMode;
         parentActivity.brightness = s.brightness;
         parentActivity.red = s.red;
@@ -530,7 +536,6 @@ public class MainActivity
         parentActivity.blue = s.blue;
 
         parentActivity.powerSwitch.setChecked(s.enabled);
-        parentActivity.driverModeSwitch.setChecked(s.driverMode);
         parentActivity.randomSwitch.setChecked(s.randomMode);
         parentActivity.brightnessBar.setProgress(s.brightness);
         parentActivity.redBar.setProgress(s.red);
@@ -592,21 +597,6 @@ public class MainActivity
         setBTState(BTState.DISCONNECTED);
       }
       power = state;
-    } else if (compoundButton == driverModeSwitch) {
-      if (btState != BTState.CONNECTED) {
-        driverModeSwitch.setChecked(driverMode);
-        return;
-      }
-      try {
-        btOut.write('\2');
-        btOut.write('M');
-        btOut.write(state ? 'K' : 'G');
-      } catch (IOException e) {
-        errorText.setText(e.getMessage());
-        driverModeSwitch.setChecked(driverMode);
-        setBTState(BTState.DISCONNECTED);
-      }
-      driverMode = state;
     } else if (compoundButton == randomSwitch) {
       if (btState != BTState.CONNECTED) {
         randomSwitch.setChecked(randomMode);

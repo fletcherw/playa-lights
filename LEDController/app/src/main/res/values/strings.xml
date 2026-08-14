@@ -14,8 +14,6 @@
   <string name="green_label">G:</string>
   <string name="blue_label">B:</string>
   <string name="color_component_default">0</string>
-  <string name="bike">Bike</string>
-  <string name="bag">Bag</string>
   <string name="error_label">Error:</string>
   <string name="error_default">None</string>
   <string name="random_label">Random:</string>
