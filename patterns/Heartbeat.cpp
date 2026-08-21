@@ -36,6 +36,14 @@ void Heartbeat::blit() {
   }
 }
 
+void Heartbeat::setColor(CRGB c) {
+  color_ = c;
+}
+
+CRGB Heartbeat::getColor() {
+  return color_;
+}
+
 float Heartbeat::bump_(float center, float width) {
   float d = (phase_ - center) / width;
   return exp(-d * d * kSharpness);

@@ -241,9 +241,14 @@ void setPattern(pattern_type p) {
   }
   long currentTime = millis();
   for (int i = 0; i < numPatternSegments; i++) {
-    if (usesUserColor(p)) patternSegments[i]->setColor(activeColor);
+    // Heartbeat has its own signature default color; don't stomp it with
+    // whatever was last set on a different pattern. Instead, once it's
+    // active, adopt its color as the new activeColor so 'G'/'S' responses
+    // (and any later 'C' command) stay consistent with what's actually lit.
+    if (usesUserColor(p) && p != HEARTBEAT) patternSegments[i]->setColor(activeColor);
     lastBlit[i] = currentTime;
   }
+  if (p == HEARTBEAT) activeColor = patternSegments[0]->getColor();
 }
 
 void sendState() {
@@ -333,10 +338,14 @@ void handleCommand() {
         printMessage();
       } else {
         pattern_type newPattern = (pattern_type) message[1];
-        if (newPattern == activePattern) break;
-        clearLeds();
-        setPattern(newPattern);
-        if (!paused) FastLED.show();
+        if (newPattern != activePattern) {
+          clearLeds();
+          setPattern(newPattern);
+          if (!paused) FastLED.show();
+        }
+        // report back the resulting state, since switching pattern can
+        // change the active color (see Heartbeat's default in setPattern).
+        sendState();
       }
       break;
     }
@@ -376,6 +385,7 @@ bool usesUserColor(pattern_type p) {
     case SOLID:
     case SPARKLE:
     case PULSE:
+    case HEARTBEAT:
       return true;
     default:
       return false;

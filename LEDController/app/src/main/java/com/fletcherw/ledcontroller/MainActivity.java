@@ -509,6 +509,40 @@ public class MainActivity
     public int pattern;
   }
 
+  // Shared by any command whose response has the same shape as 'G' (currently 'G' and 'S').
+  private static Errorable<CurrentState> readCurrentState(BluetoothSocket btSocket) {
+    Errorable<CurrentState> result = new Errorable<>();
+    if (btSocket == null) {
+      result.error = "BluetoothSocket is null";
+      return result;
+    }
+    try {
+      byte[] buffer = new byte[32];
+      int length = btSocket.getInputStream().read();
+      int read = 0;
+      int last_read;
+      while (read < length) {
+        last_read = btSocket.getInputStream().read(buffer, read, length - read);
+        read += last_read;
+      }
+
+      CurrentState s = new CurrentState();
+      s.enabled = buffer[1] == '1';
+      s.randomMode = buffer[3] == '1';
+      s.brightness = buffer[4] & 0xff; // account for signedness
+      s.red = buffer[5] & 0xff;
+      s.green = buffer[6] & 0xff;
+      s.blue = buffer[7] & 0xff;
+      s.pattern = buffer[8] & 0xff;
+
+      result.result = s;
+      return result;
+    } catch (IOException e) {
+      result.error = e.getMessage();
+      return result;
+    }
+  }
+
   public static class StateUpdateTask extends AsyncTask<Void, Void, Errorable<CurrentState>>
   {
     private WeakReference<BluetoothSocket> btSocket;
@@ -523,39 +557,20 @@ public class MainActivity
     @Override
     protected Errorable<CurrentState> doInBackground(Void... voids) {
       BluetoothSocket btSocket = this.btSocket.get();
-      Errorable<CurrentState> result = new Errorable<>();
       if (btSocket == null) {
+        Errorable<CurrentState> result = new Errorable<>();
         result.error = "BluetoothSocket is null";
         return result;
       }
       try {
         btSocket.getOutputStream().write(0x1);
         btSocket.getOutputStream().write('G');
-
-        byte[] buffer = new byte[32];
-        int length = btSocket.getInputStream().read();
-        int read = 0;
-        int last_read;
-        while (read < length) {
-          last_read = btSocket.getInputStream().read(buffer, read, length - read);
-          read += last_read;
-        }
-
-        CurrentState s = new CurrentState();
-        s.enabled = buffer[1] == '1';
-        s.randomMode = buffer[3] == '1';
-        s.brightness = buffer[4] & 0xff; // account for signedness
-        s.red = buffer[5] & 0xff;
-        s.green = buffer[6] & 0xff;
-        s.blue = buffer[7] & 0xff;
-        s.pattern = buffer[8] & 0xff;
-
-        result.result = s;
-        return result;
       } catch (IOException e) {
+        Errorable<CurrentState> result = new Errorable<>();
         result.error = e.getMessage();
         return result;
       }
+      return readCurrentState(btSocket);
     }
 
     @Override
@@ -568,31 +583,87 @@ public class MainActivity
         parentActivity.setBTState(BTState.DISCONNECTED);
         parentActivity.errorText.setText(result.error);
       } else if (result.result != null) {
-        CurrentState s = result.result;
-        parentActivity.power = s.enabled;
-        parentActivity.randomMode = s.randomMode;
-        parentActivity.brightness = s.brightness;
-        parentActivity.red = s.red;
-        parentActivity.green = s.green;
-        parentActivity.blue = s.blue;
-
-        parentActivity.powerSwitch.setChecked(s.enabled);
-        parentActivity.randomSwitch.setChecked(s.randomMode);
-        parentActivity.brightnessBar.setProgress(s.brightness);
-        parentActivity.redBar.setProgress(s.red);
-        parentActivity.greenBar.setProgress(s.green);
-        parentActivity.blueBar.setProgress(s.blue);
-        if (s.pattern >= 0 && s.pattern < parentActivity.patternAdapter.getCount()) {
-          parentActivity.patternSpinner.setSelection(s.pattern, true);
-          parentActivity.selectedPattern = s.pattern;
-        } else {
-          String message = "Received out-of-range pattern index from device: " + s.pattern;
-          Log.w(TAG, message);
-          parentActivity.errorText.setText(message);
-        }
-        parentActivity.syncColorSliderState();
+        parentActivity.applyCurrentState(result.result);
       }
     }
+  }
+
+  public static class SetPatternTask extends AsyncTask<Void, Void, Errorable<CurrentState>>
+  {
+    private WeakReference<BluetoothSocket> btSocket;
+    private WeakReference<MainActivity> parentActivity;
+    private int pos;
+    private int previousPattern;
+
+    private SetPatternTask(
+        BluetoothSocket btSocket, MainActivity parentActivity, int pos, int previousPattern) {
+      this.btSocket = new WeakReference<>(btSocket);
+      this.parentActivity = new WeakReference<>(parentActivity);
+      this.pos = pos;
+      this.previousPattern = previousPattern;
+      parentActivity.errorText.setText(R.string.error_default);
+    }
+
+    @Override
+    protected Errorable<CurrentState> doInBackground(Void... voids) {
+      BluetoothSocket btSocket = this.btSocket.get();
+      if (btSocket == null) {
+        Errorable<CurrentState> result = new Errorable<>();
+        result.error = "BluetoothSocket is null";
+        return result;
+      }
+      try {
+        btSocket.getOutputStream().write(0x2);
+        btSocket.getOutputStream().write('S');
+        btSocket.getOutputStream().write(pos);
+      } catch (IOException e) {
+        Errorable<CurrentState> result = new Errorable<>();
+        result.error = e.getMessage();
+        return result;
+      }
+      return readCurrentState(btSocket);
+    }
+
+    @Override
+    protected void onPostExecute(Errorable<CurrentState> result) {
+      MainActivity parentActivity = this.parentActivity.get();
+      if (parentActivity == null) return;
+      if (result == null) {
+        parentActivity.setBTState(BTState.DISCONNECTED);
+        parentActivity.patternSpinner.setSelection(previousPattern);
+      } else if (result.error != null) {
+        parentActivity.setBTState(BTState.DISCONNECTED);
+        parentActivity.errorText.setText(result.error);
+        parentActivity.patternSpinner.setSelection(previousPattern);
+      } else if (result.result != null) {
+        parentActivity.applyCurrentState(result.result);
+      }
+    }
+  }
+
+  protected void applyCurrentState(CurrentState s) {
+    power = s.enabled;
+    randomMode = s.randomMode;
+    brightness = s.brightness;
+    red = s.red;
+    green = s.green;
+    blue = s.blue;
+
+    powerSwitch.setChecked(s.enabled);
+    randomSwitch.setChecked(s.randomMode);
+    brightnessBar.setProgress(s.brightness);
+    redBar.setProgress(s.red);
+    greenBar.setProgress(s.green);
+    blueBar.setProgress(s.blue);
+    if (s.pattern >= 0 && s.pattern < patternAdapter.getCount()) {
+      patternSpinner.setSelection(s.pattern, true);
+      selectedPattern = s.pattern;
+    } else {
+      String message = "Received out-of-range pattern index from device: " + s.pattern;
+      Log.w(TAG, message);
+      errorText.setText(message);
+    }
+    syncColorSliderState();
   }
 
   protected void syncColorSliderState() {
@@ -612,17 +683,7 @@ public class MainActivity
       patternSpinner.setSelection(selectedPattern);
       return;
     }
-    try {
-      btOut.write(0x2);
-      btOut.write('S');
-      btOut.write(pos);
-      selectedPattern = pos;
-      syncColorSliderState();
-    } catch (IOException e) {
-      errorText.setText(e.getMessage());
-      patternSpinner.setSelection(selectedPattern);
-      setBTState(BTState.DISCONNECTED);
-    }
+    new SetPatternTask(btSocket, this, pos, selectedPattern).execute();
   }
 
   @Override

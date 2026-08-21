@@ -9,6 +9,8 @@ public:
   Heartbeat(LEDSegment leds);
 
   void blit();
+  void setColor(CRGB c);
+  CRGB getColor();
 
 private:
   float bump_(float center, float width);

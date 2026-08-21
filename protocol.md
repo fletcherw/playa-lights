@@ -18,6 +18,7 @@ Effects: P0 turns off strip, P1 turns on strip
 
 Name: Set pattern
 Syntax: S followed by a pattern index (in hex)
+Returns: Same as Get state (switching pattern can change the active color, e.g. Heartbeat's default)
 
 Name: List patterns
 Syntax: L
