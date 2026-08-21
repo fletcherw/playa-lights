@@ -5,7 +5,6 @@
 #define LED_DATA_PIN 12
 #define BUTTON_PIN 6
 #define COLOR_ORDER GRB
-#define NUM_BIKE_LEDS 59
 #define NUM_LEDS 59
 #define LED_TYPE WS2812B
 #define RANDOM_SWITCH_INTERVAL 60000
@@ -252,10 +251,9 @@ void setPattern(pattern_type p) {
 }
 
 void sendState() {
-  Serial1.write((char) 0x9);
+  Serial1.write((char) 0x8);
   Serial1.write('U');
   Serial1.write(paused ? '0' : '1');
-  Serial1.write('K'); // mode byte kept for wire compatibility; only bike mode exists now
   Serial1.write(randomSwitch ? '1' : '0');
   Serial1.write(brightness);
   Serial1.write(activeColor.red);

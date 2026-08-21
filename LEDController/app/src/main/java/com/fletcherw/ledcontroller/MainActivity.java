@@ -399,10 +399,6 @@ public class MainActivity
         parentActivity.btSocket = btSocket;
         try {
           parentActivity.btOut = btSocket.getOutputStream();
-          // Always run in bike mode; there is no user-facing driver mode toggle.
-          parentActivity.btOut.write('\2');
-          parentActivity.btOut.write('M');
-          parentActivity.btOut.write('K');
         } catch (IOException e) {
           parentActivity.errorText.setText(e.getMessage());
           parentActivity.setBTState(BTState.DISCONNECTED);
@@ -528,12 +524,12 @@ public class MainActivity
 
       CurrentState s = new CurrentState();
       s.enabled = buffer[1] == '1';
-      s.randomMode = buffer[3] == '1';
-      s.brightness = buffer[4] & 0xff; // account for signedness
-      s.red = buffer[5] & 0xff;
-      s.green = buffer[6] & 0xff;
-      s.blue = buffer[7] & 0xff;
-      s.pattern = buffer[8] & 0xff;
+      s.randomMode = buffer[2] == '1';
+      s.brightness = buffer[3] & 0xff; // account for signedness
+      s.red = buffer[4] & 0xff;
+      s.green = buffer[5] & 0xff;
+      s.blue = buffer[6] & 0xff;
+      s.pattern = buffer[7] & 0xff;
 
       result.result = s;
       return result;
