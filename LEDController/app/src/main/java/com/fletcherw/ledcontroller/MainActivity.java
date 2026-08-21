@@ -31,6 +31,8 @@ import android.widget.TextView;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.lang.ref.WeakReference;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
@@ -43,53 +45,6 @@ public class MainActivity
     SeekBar.OnSeekBarChangeListener
 {
   private static final String TAG = "MainActivity";
-
-  enum Pattern {
-    SPINNING_RAINBOW,
-    PING_PONG,
-    SOLID,
-    SPARKLE,
-    FIRE,
-    PULSE,
-    METEOR,
-    MOVING_MOUND,
-    RANDOM_METEOR,
-    THEATER_CHASE,
-    RIPPLE;
-
-    public static Pattern[] cachedValues = null;
-
-    public static Pattern fromInt(int i) {
-      if (cachedValues == null) cachedValues = Pattern.values();
-      return cachedValues[i];
-    }
-
-    @Override
-    public String toString() {
-      char[] chars = super.toString().toCharArray();
-      for (int i = 0; i < chars.length; i++) {
-        if (chars[i] == '_') chars[i] = ' ';
-        else if (i != 0 && chars[i - 1] != ' ' && Character.isLetter(chars[i])) {
-          chars[i] = Character.toLowerCase(chars[i]);
-        }
-      }
-      return String.valueOf(chars);
-    }
-  }
-
-  private boolean canSetColor(Pattern p) {
-    switch (p) {
-      case PING_PONG:
-      case SOLID:
-      case PULSE:
-      case METEOR:
-      case THEATER_CHASE:
-      case RIPPLE:
-        return true;
-      default:
-        return false;
-    }
-  }
 
   enum BTState {
     DISCONNECTED,
@@ -115,6 +70,7 @@ public class MainActivity
   private Button btActionButton;
 
   private Spinner patternSpinner;
+  private ArrayAdapter<PatternInfo> patternAdapter;
   private SwitchCompat powerSwitch;
 
   private SwitchCompat randomSwitch;
@@ -151,15 +107,11 @@ public class MainActivity
     patternSpinner = findViewById(R.id.patternSpinner);
     patternSpinner.setOnItemSelectedListener(this);
 
-    // Populate spinner with Pattern enum values
-    ArrayAdapter<Pattern> adapter =
-        new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, Pattern.values());
-
-    // Specify the layout to use when the list of choices appears
-    adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-
-    // Apply the adapter to the spinner
-    patternSpinner.setAdapter(adapter);
+    // Pattern names are fetched from the driver on connect; start empty.
+    patternAdapter =
+        new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, new ArrayList<>());
+    patternAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+    patternSpinner.setAdapter(patternAdapter);
 
     // Power Switch
     powerSwitch = findViewById(R.id.powerSwitch);
@@ -456,7 +408,93 @@ public class MainActivity
           parentActivity.setBTState(BTState.DISCONNECTED);
         }
         parentActivity.setBTState(BTState.CONNECTED);
-        new StateUpdateTask(btSocket, parentActivity).execute();
+        new PatternListTask(btSocket, parentActivity).execute();
+      }
+    }
+  }
+
+  public static class PatternInfo {
+    public final String name;
+    public final boolean canSetColor;
+
+    public PatternInfo(String name, boolean canSetColor) {
+      this.name = name;
+      this.canSetColor = canSetColor;
+    }
+
+    @Override
+    public String toString() {
+      return name;
+    }
+  }
+
+  public static class PatternListTask extends AsyncTask<Void, Void, Errorable<List<PatternInfo>>>
+  {
+    private WeakReference<BluetoothSocket> btSocket;
+    private WeakReference<MainActivity> parentActivity;
+
+    private PatternListTask(BluetoothSocket btSocket, MainActivity parentActivity) {
+      this.btSocket = new WeakReference<>(btSocket);
+      this.parentActivity = new WeakReference<>(parentActivity);
+      parentActivity.errorText.setText(R.string.error_default);
+    }
+
+    @Override
+    protected Errorable<List<PatternInfo>> doInBackground(Void... voids) {
+      BluetoothSocket btSocket = this.btSocket.get();
+      Errorable<List<PatternInfo>> result = new Errorable<>();
+      if (btSocket == null) {
+        result.error = "BluetoothSocket is null";
+        return result;
+      }
+      try {
+        btSocket.getOutputStream().write(0x1);
+        btSocket.getOutputStream().write('L');
+
+        byte[] buffer = new byte[255];
+        int length = btSocket.getInputStream().read();
+        int read = 0;
+        int last_read;
+        while (read < length) {
+          last_read = btSocket.getInputStream().read(buffer, read, length - read);
+          read += last_read;
+        }
+
+        int patternCount = buffer[1] & 0xff;
+        List<PatternInfo> patterns = new ArrayList<>(patternCount);
+        int cursor = 2;
+        for (int i = 0; i < patternCount; i++) {
+          int nameLength = buffer[cursor] & 0xff;
+          cursor++;
+          String name = new String(buffer, cursor, nameLength, "US-ASCII");
+          cursor += nameLength;
+          boolean canSetColor = buffer[cursor] == '1';
+          cursor++;
+          patterns.add(new PatternInfo(name, canSetColor));
+        }
+
+        result.result = patterns;
+        return result;
+      } catch (IOException e) {
+        result.error = e.getMessage();
+        return result;
+      }
+    }
+
+    @Override
+    protected void onPostExecute(Errorable<List<PatternInfo>> result) {
+      MainActivity parentActivity = this.parentActivity.get();
+      BluetoothSocket btSocket = this.btSocket.get();
+      if (parentActivity == null) return;
+      if (result == null) {
+        parentActivity.setBTState(BTState.DISCONNECTED);
+      } else if (result.error != null) {
+        parentActivity.setBTState(BTState.DISCONNECTED);
+        parentActivity.errorText.setText(result.error);
+      } else if (result.result != null) {
+        parentActivity.patternAdapter.clear();
+        parentActivity.patternAdapter.addAll(result.result);
+        if (btSocket != null) new StateUpdateTask(btSocket, parentActivity).execute();
       }
     }
   }
@@ -544,7 +582,7 @@ public class MainActivity
         parentActivity.redBar.setProgress(s.red);
         parentActivity.greenBar.setProgress(s.green);
         parentActivity.blueBar.setProgress(s.blue);
-        if (s.pattern >= 0 && s.pattern < Pattern.values().length) {
+        if (s.pattern >= 0 && s.pattern < parentActivity.patternAdapter.getCount()) {
           parentActivity.patternSpinner.setSelection(s.pattern, true);
           parentActivity.selectedPattern = s.pattern;
         } else {
@@ -558,8 +596,8 @@ public class MainActivity
   }
 
   protected void syncColorSliderState() {
-    boolean colorEnabled = selectedPattern >= 0 && selectedPattern < Pattern.values().length
-        && canSetColor(Pattern.fromInt(selectedPattern));
+    boolean colorEnabled = selectedPattern >= 0 && selectedPattern < patternAdapter.getCount()
+        && patternAdapter.getItem(selectedPattern).canSetColor;
     redBar.setEnabled(colorEnabled);
     greenBar.setEnabled(colorEnabled);
     blueBar.setEnabled(colorEnabled);

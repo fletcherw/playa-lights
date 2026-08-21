@@ -22,3 +22,7 @@ Effects: P0 turns off strip, P1 turns on strip
 
 Name: Set pattern
 Syntax: S followed by a pattern index (in hex)
+
+Name: List patterns
+Syntax: L
+Returns: pattern count (1 byte), followed by, for each pattern in index order: name length (1 byte) + name bytes (ASCII, not null-terminated) + supports-color flag ('0' or '1')

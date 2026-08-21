@@ -1,3 +1,5 @@
+#include <string.h>
+
 #include "FastLED.h"
 
 #define LED_DATA_PIN 12
@@ -40,6 +42,21 @@ enum pattern_type {
   INVALID // keep as last
 };
 
+// indices must line up with pattern_type
+const char* patternNames[PATTERN_COUNT] = {
+  "Spinning Rainbow",
+  "Ping Pong",
+  "Solid",
+  "Sparkle",
+  "Fire",
+  "Pulse",
+  "Meteor",
+  "Moving Mound",
+  "Random Meteor",
+  "Theater Chase",
+  "Ripple"
+};
+
 enum driver_mode {
   BAG = 'G',
   BIKE = 'K'
@@ -72,8 +89,8 @@ pattern_type activePattern = INVALID;
 CRGB activeColor = CRGB::White;
 byte brightness = 255;
 bool paused = false;
-driver_mode mode = BAG;
-bool randomSwitch = true;
+driver_mode mode = BIKE;
+bool randomSwitch = false;
 long lastRandomSwitch;
 
 // data related to running patterns
@@ -365,6 +382,24 @@ void sendState() {
   Serial1.write(activePattern);
 }
 
+void sendPatternList() {
+  // response length is capped at 255 by the single-byte length prefix;
+  // PATTERN_COUNT patterns with short names comfortably fit under that.
+  int length = 2; // type char + count byte
+  for (int i = 0; i < PATTERN_COUNT; i++) {
+    length += 2 + strlen(patternNames[i]); // name length byte + name bytes + color-support byte
+  }
+
+  Serial1.write((char) length);
+  Serial1.write('L');
+  Serial1.write((char) PATTERN_COUNT);
+  for (int i = 0; i < PATTERN_COUNT; i++) {
+    Serial1.write((char) strlen(patternNames[i]));
+    Serial1.write(patternNames[i]);
+    Serial1.write(usesUserColor((pattern_type) i) ? '1' : '0');
+  }
+}
+
 void handleCommand() {
   switch(message[0]) {
     case 'B': {
@@ -382,6 +417,10 @@ void handleCommand() {
     }
     case 'G': {
       sendState();
+      break;
+    }
+    case 'L': {
+      sendPatternList();
       break;
     }
     case 'M': {
