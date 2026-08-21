@@ -25,6 +25,7 @@
 #include "src/patterns/RandomMeteor.h"
 #include "src/patterns/TheaterChase.h"
 #include "src/patterns/Ripple.h"
+#include "src/patterns/Heartbeat.h"
 
 enum pattern_type {
   SPINNING_RAINBOW,
@@ -38,6 +39,7 @@ enum pattern_type {
   RANDOM_METEOR,
   THEATER_CHASE,
   RIPPLE,
+  HEARTBEAT,
   PATTERN_COUNT, // keep as second-to-last
   INVALID // keep as last
 };
@@ -54,7 +56,8 @@ const char* patternNames[PATTERN_COUNT] = {
   "Moving Mound",
   "Random Meteor",
   "Theater Chase",
-  "Ripple"
+  "Ripple",
+  "Heartbeat"
 };
 
 enum driver_mode {
@@ -284,6 +287,10 @@ void setPattern(pattern_type p) {
         patternSegments[0] = new Ripple(bagHoop);
         numPatternSegments = 1;
         break;
+      case HEARTBEAT:
+        patternSegments[0] = new Heartbeat(bagAll);
+        numPatternSegments = 1;
+        break;
       default:
         numPatternSegments = 0;
         break;
@@ -352,6 +359,10 @@ void setPattern(pattern_type p) {
       }
       case RIPPLE:
         patternSegments[0] = new Ripple(bikeAll);
+        numPatternSegments = 1;
+        break;
+      case HEARTBEAT:
+        patternSegments[0] = new Heartbeat(bikeAll);
         numPatternSegments = 1;
         break;
       default:
