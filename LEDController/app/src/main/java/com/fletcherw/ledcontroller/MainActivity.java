@@ -13,6 +13,7 @@ import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.os.AsyncTask;
 import android.os.Build;
+import android.util.Log;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.SwitchCompat;
 import androidx.core.app.ActivityCompat;
@@ -41,6 +42,8 @@ public class MainActivity
     View.OnClickListener,
     SeekBar.OnSeekBarChangeListener
 {
+  private static final String TAG = "MainActivity";
+
   enum Pattern {
     SPINNING_RAINBOW,
     PING_PONG,
@@ -541,15 +544,22 @@ public class MainActivity
         parentActivity.redBar.setProgress(s.red);
         parentActivity.greenBar.setProgress(s.green);
         parentActivity.blueBar.setProgress(s.blue);
-        parentActivity.patternSpinner.setSelection(s.pattern, true);
-        parentActivity.selectedPattern = s.pattern;
+        if (s.pattern >= 0 && s.pattern < Pattern.values().length) {
+          parentActivity.patternSpinner.setSelection(s.pattern, true);
+          parentActivity.selectedPattern = s.pattern;
+        } else {
+          String message = "Received out-of-range pattern index from device: " + s.pattern;
+          Log.w(TAG, message);
+          parentActivity.errorText.setText(message);
+        }
         parentActivity.syncColorSliderState();
       }
     }
   }
 
   protected void syncColorSliderState() {
-    boolean colorEnabled = canSetColor(Pattern.fromInt(selectedPattern));
+    boolean colorEnabled = selectedPattern >= 0 && selectedPattern < Pattern.values().length
+        && canSetColor(Pattern.fromInt(selectedPattern));
     redBar.setEnabled(colorEnabled);
     greenBar.setEnabled(colorEnabled);
     blueBar.setEnabled(colorEnabled);
