@@ -726,7 +726,7 @@ public class MainActivity
       if (btState == BTState.DISCONNECTED) {
         checkBTState();
       } else if (btState == BTState.CONNECTED) {
-        new StateUpdateTask(this.btSocket, this).execute();
+        new PatternListTask(this.btSocket, this).execute();
       }
     }
   }

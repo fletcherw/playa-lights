@@ -24,6 +24,7 @@
 #include "src/patterns/TheaterChase.h"
 #include "src/patterns/Ripple.h"
 #include "src/patterns/Heartbeat.h"
+#include "src/patterns/Glitter.h"
 
 enum pattern_type {
   SPINNING_RAINBOW,
@@ -38,6 +39,7 @@ enum pattern_type {
   THEATER_CHASE,
   RIPPLE,
   HEARTBEAT,
+  GLITTER,
   PATTERN_COUNT, // keep as second-to-last
   INVALID // keep as last
 };
@@ -55,7 +57,8 @@ const char* patternNames[PATTERN_COUNT] = {
   "Random Meteor",
   "Theater Chase",
   "Ripple",
-  "Heartbeat"
+  "Heartbeat",
+  "Glitter"
 };
 
 // array used to display patterns
@@ -234,6 +237,10 @@ void setPattern(pattern_type p) {
       patternSegments[0] = new Heartbeat(bikeAll);
       numPatternSegments = 1;
       break;
+    case GLITTER:
+      patternSegments[0] = new Glitter(bikeAll);
+      numPatternSegments = 1;
+      break;
     default:
       numPatternSegments = 0;
       break;
@@ -384,6 +391,7 @@ bool usesUserColor(pattern_type p) {
     case SPARKLE:
     case PULSE:
     case HEARTBEAT:
+    case GLITTER:
       return true;
     default:
       return false;
