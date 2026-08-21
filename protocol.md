@@ -12,10 +12,6 @@ Name: Get state
 Syntax: G
 Returns: Various state values
 
-Name: Set mode
-Syntax: M0 or M1
-Effects: MG sets to bag mode, MK sets to bike mode
-
 Name: Power
 Syntax: P0 or P1
 Effects: P0 turns off strip, P1 turns on strip
