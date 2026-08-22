@@ -20,7 +20,6 @@
 #include "src/patterns/Pulse.h"
 #include "src/patterns/Meteor.h"
 #include "src/patterns/MovingMound.h"
-#include "src/patterns/RandomMeteor.h"
 #include "src/patterns/TheaterChase.h"
 #include "src/patterns/Ripple.h"
 #include "src/patterns/Heartbeat.h"
@@ -35,7 +34,6 @@ enum pattern_type {
   PULSE,
   METEOR,
   MOVING_MOUND,
-  RANDOM_METEOR,
   THEATER_CHASE,
   RIPPLE,
   HEARTBEAT,
@@ -54,7 +52,6 @@ const char* patternNames[PATTERN_COUNT] = {
   "Pulse",
   "Meteor",
   "Moving Mound",
-  "Random Meteor",
   "Theater Chase",
   "Ripple",
   "Heartbeat",
@@ -222,10 +219,6 @@ void setPattern(pattern_type p) {
       numPatternSegments = 3;
       break;
     }
-    case RANDOM_METEOR:
-      patternSegments[0] = new RandomMeteor(bikeAll);
-      numPatternSegments = 1;
-      break;
     case THEATER_CHASE: {
       TheaterChase* tc = new TheaterChase(bikeAll);
       tc->setUpdateInterval(150);
