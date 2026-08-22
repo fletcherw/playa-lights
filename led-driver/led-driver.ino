@@ -398,10 +398,12 @@ bool usesUserColor(pattern_type p) {
   switch (p) {
     case PING_PONG:
     case SOLID:
-    case SPARKLE:
     case PULSE:
     case HEARTBEAT:
     case GLITTER:
+    case THEATER_CHASE:
+    case RIPPLE:
+    case METEOR:
       return true;
     default:
       return false;

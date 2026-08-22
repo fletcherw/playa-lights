@@ -13,8 +13,12 @@ import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.os.AsyncTask;
 import android.os.Build;
+import android.os.Handler;
+import android.os.Looper;
 import android.os.SystemClock;
 import android.util.Log;
+
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.SwitchCompat;
 import androidx.core.app.ActivityCompat;
@@ -90,6 +94,40 @@ public class MainActivity
 
   private TextView errorText;
 
+  // B/C/P/R are fire-and-forget, so the app's idea of the driver's state can
+  // drift silently. Add periodic poll to keep things in sync.
+  private static final long RESYNC_INTERVAL_MS = 10000;
+  private final Handler resyncHandler = new Handler(Looper.getMainLooper());
+  private boolean resyncScheduled;
+  private boolean stateUpdateInFlight;
+  private boolean applyingState;
+  private boolean userAdjustingControl;
+
+  private final Runnable resyncRunnable = new Runnable() {
+    @Override
+    public void run() {
+      resyncScheduled = false;
+      if (btState != BTState.CONNECTED) return;
+      // Skip a tick rather than stomping a control the user is mid-drag on, or
+      // queueing behind a response we're already waiting for.
+      if (!stateUpdateInFlight && !userAdjustingControl) {
+        new StateUpdateTask(btSocket, MainActivity.this).execute();
+      }
+      scheduleResync();
+    }
+  };
+
+  private void scheduleResync() {
+    if (resyncScheduled || btState != BTState.CONNECTED) return;
+    resyncScheduled = true;
+    resyncHandler.postDelayed(resyncRunnable, RESYNC_INTERVAL_MS);
+  }
+
+  private void cancelResync() {
+    resyncHandler.removeCallbacks(resyncRunnable);
+    resyncScheduled = false;
+  }
+
   public MainActivity() {
     btBroadcastReceiver = null;
     btSocket = null;
@@ -124,8 +162,7 @@ public class MainActivity
     // Random Switch
     randomSwitch = findViewById(R.id.randomSwitch);
     randomSwitch.setOnCheckedChangeListener(this);
-    randomMode = false;
-    randomSwitch.setChecked(randomMode);
+    randomSwitch.setChecked(false);
 
     // Brightness Bar
     brightnessBar = findViewById(R.id.brightnessBar);
@@ -193,7 +230,7 @@ public class MainActivity
 
   @Override
   public void onRequestPermissionsResult(
-      int requestCode, String[] permissions, int[] grantResults) {
+          int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
     super.onRequestPermissionsResult(requestCode, permissions, grantResults);
     if (requestCode == REQUEST_BLUETOOTH_CONNECT
         && grantResults.length > 0
@@ -207,7 +244,17 @@ public class MainActivity
   @Override
   protected void onResume() {
     super.onResume();
-    if (btState == BTState.CONNECTED) new StateUpdateTask(btSocket, this).execute();
+    if (btState == BTState.CONNECTED) {
+      new StateUpdateTask(btSocket, this).execute();
+      scheduleResync();
+    }
+  }
+
+  @Override
+  protected void onPause() {
+    super.onPause();
+    // No point polling a driver the user can't see; onResume picks it back up.
+    cancelResync();
   }
 
   protected void setDriverInputEnabled(boolean enabled) {
@@ -229,6 +276,7 @@ public class MainActivity
         this.btActionButton.setText(R.string.bluetooth_update);
         this.btActionButton.setEnabled(true);
         this.setDriverInputEnabled(true);
+        scheduleResync();
         break;
       case CONNECTING:
         this.btStatusText.setText(R.string.bluetooth_connecting);
@@ -236,6 +284,7 @@ public class MainActivity
         this.btActionButton.setText(R.string.bluetooth_connect);
         this.btActionButton.setEnabled(false);
         this.setDriverInputEnabled(false);
+        cancelResync();
         break;
       case DISCONNECTED:
         this.btStatusText.setText(R.string.bluetooth_disconnected);
@@ -243,6 +292,7 @@ public class MainActivity
         this.btActionButton.setText(R.string.bluetooth_connect);
         this.btActionButton.setEnabled(true);
         this.setDriverInputEnabled(false);
+        cancelResync();
         break;
     }
   }
@@ -592,6 +642,7 @@ public class MainActivity
       this.btSocket = new WeakReference<>(btSocket);
       this.parentActivity = new WeakReference<>(parentActivity);
       parentActivity.errorText.setText(R.string.error_default);
+      parentActivity.stateUpdateInFlight = true;
     }
 
     @Override
@@ -617,6 +668,7 @@ public class MainActivity
     protected void onPostExecute(Errorable<CurrentState> result) {
       MainActivity parentActivity = this.parentActivity.get();
       if (parentActivity == null) return;
+      parentActivity.stateUpdateInFlight = false;
       if (result == null) {
         parentActivity.setBTState(BTState.DISCONNECTED);
       } else if (result.error != null) {
@@ -689,8 +741,19 @@ public class MainActivity
     green = s.green;
     blue = s.blue;
 
-    powerSwitch.setChecked(s.enabled);
-    randomSwitch.setChecked(s.randomMode);
+    // setChecked fires onCheckedChanged, which would send the value we just
+    // read back to the driver as a fresh 'P'/'R' command. Harmless once, but a
+    // standing echo now that this runs every RESYNC_INTERVAL_MS.
+    applyingState = true;
+    try {
+      powerSwitch.setChecked(s.enabled);
+      randomSwitch.setChecked(s.randomMode);
+    } finally {
+      applyingState = false;
+    }
+    // SeekBar.setProgress only fires onProgressChanged (label updates, with
+    // fromUser false); commands are sent from onStopTrackingTouch, so these
+    // need no guard.
     brightnessBar.setProgress(s.brightness);
     redBar.setProgress(s.red);
     greenBar.setProgress(s.green);
@@ -731,6 +794,8 @@ public class MainActivity
 
   @Override
   public void onCheckedChanged(CompoundButton compoundButton, boolean state) {
+    // We're echoing the driver's own state back at it; not a user action.
+    if (applyingState) return;
     if (compoundButton == powerSwitch) {
       if (btState != BTState.CONNECTED) {
         powerSwitch.setChecked(power);
@@ -801,10 +866,13 @@ public class MainActivity
   }
 
   @Override
-  public void onStartTrackingTouch(SeekBar seekBar) {}
+  public void onStartTrackingTouch(SeekBar seekBar) {
+    userAdjustingControl = true;
+  }
 
   @Override
   public void onStopTrackingTouch(SeekBar seekBar) {
+    userAdjustingControl = false;
     if (seekBar == brightnessBar) {
       if (btState != BTState.CONNECTED) {
         brightnessBar.setProgress(brightness);
@@ -848,6 +916,7 @@ public class MainActivity
   @Override
   public void onDestroy() {
     super.onDestroy();
+    cancelResync();
     unregisterReceiver(btBroadcastReceiver);
     try {
       if (btSocket != null) btSocket.close();
