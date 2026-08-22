@@ -84,6 +84,10 @@ long lastBlit[MAX_ACTIVE_PATTERNS];
 
 // buffer for incoming commands
 #define BUF_SIZE 128
+#define MAX_MESSAGE_LENGTH 32
+// printMessage() null-terminates at message[bytesRead], so the buffer needs
+// room for the longest frame plus that terminator.
+static_assert(MAX_MESSAGE_LENGTH < BUF_SIZE, "BUF_SIZE too small for MAX_MESSAGE_LENGTH");
 size_t messageLength = 0;
 size_t bytesRead = 0;
 bool inMessage = false;
@@ -360,25 +364,31 @@ void handleCommand() {
 void receiveBluetooth() {
   int commandsProcessed = 0;
   while (Serial1.available()) {
-    char read = Serial1.read();
+    // Serial1.read() returns an int in 0..255; storing it in a (signed) char
+    // would turn a 0x80-or-higher byte into a negative length below.
+    int incoming = Serial1.read();
+    if (incoming < 0) break;
     if (!inMessage) {
-      if (read > 32) continue;
-      messageLength = read;
-      if (messageLength == 0) continue;
+      // Length prefix. Anything outside the valid range is line noise, so
+      // drop it and keep looking for a plausible frame start.
+      if (incoming <= 0 || incoming > MAX_MESSAGE_LENGTH) continue;
+      messageLength = incoming;
       inMessage = true;
       bytesRead = 0;
       Serial.print("Incoming length: ");
       Serial.println(messageLength);
     } else {
-      char received = read;
-      message[bytesRead] = received;
+      message[bytesRead] = (char) incoming;
       bytesRead++;
       if (bytesRead == messageLength) {
         printMessage();
         handleCommand();
+        // Must clear inMessage before the batch check below, or the next call
+        // resumes mid-frame with bytesRead already past messageLength and
+        // never finds a frame boundary again.
+        inMessage = false;
         commandsProcessed++;
         if (commandsProcessed == 5) return;
-        inMessage = false;
       }
     }
   }

@@ -13,6 +13,7 @@ import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.os.AsyncTask;
 import android.os.Build;
+import android.os.SystemClock;
 import android.util.Log;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.SwitchCompat;
@@ -29,6 +30,7 @@ import android.widget.Spinner;
 import android.widget.TextView;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
@@ -448,20 +450,23 @@ public class MainActivity
         btSocket.getOutputStream().write('L');
 
         byte[] buffer = new byte[255];
-        int length = btSocket.getInputStream().read();
-        int read = 0;
-        int last_read;
-        while (read < length) {
-          last_read = btSocket.getInputStream().read(buffer, read, length - read);
-          read += last_read;
+        InputStream in = btSocket.getInputStream();
+        int length = readLengthPrefix(in);
+        if (length < 2) {
+          throw new IOException("Malformed pattern list of length " + length);
         }
+        readFully(in, buffer, length);
 
         int patternCount = buffer[1] & 0xff;
         List<PatternInfo> patterns = new ArrayList<>(patternCount);
         int cursor = 2;
         for (int i = 0; i < patternCount; i++) {
+          // Every entry is a name-length byte, the name, and a color-support
+          // byte; bail out instead of running off the end of a corrupt frame.
+          if (cursor >= length) throw new IOException("Truncated pattern list");
           int nameLength = buffer[cursor] & 0xff;
           cursor++;
+          if (cursor + nameLength >= length) throw new IOException("Truncated pattern list");
           String name = new String(buffer, cursor, nameLength, "US-ASCII");
           cursor += nameLength;
           boolean canSetColor = buffer[cursor] == '1';
@@ -495,6 +500,46 @@ public class MainActivity
     }
   }
 
+  // How long to wait for a response before giving up and dropping the connection.
+  // RFCOMM streams ignore setSoTimeout, so reads are bounded by polling
+  // available() against a deadline instead of blocking in read().
+  private static final int READ_TIMEOUT_MS = 2000;
+
+  /**
+   * Fills buffer[0..len) from the stream, failing rather than blocking forever if the driver
+   * stops responding mid-response or closes the connection.
+   */
+  private static void readFully(InputStream in, byte[] buffer, int len) throws IOException {
+    long deadline = SystemClock.elapsedRealtime() + READ_TIMEOUT_MS;
+    int read = 0;
+    while (read < len) {
+      if (in.available() <= 0) {
+        if (SystemClock.elapsedRealtime() >= deadline) {
+          throw new IOException("Timed out waiting for a response from the driver");
+        }
+        try {
+          Thread.sleep(10);
+        } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
+          throw new IOException("Interrupted while reading a response");
+        }
+        continue;
+      }
+      int lastRead = in.read(buffer, read, len - read);
+      // read() returns -1 at EOF; without this the loop below would spin
+      // backwards forever and stale buffer contents would parse as real state.
+      if (lastRead < 0) throw new IOException("Connection closed by the driver");
+      read += lastRead;
+    }
+  }
+
+  /** Reads the single-byte length prefix that starts every response. */
+  private static int readLengthPrefix(InputStream in) throws IOException {
+    byte[] prefix = new byte[1];
+    readFully(in, prefix, 1);
+    return prefix[0] & 0xff;
+  }
+
   public static class CurrentState {
     public boolean enabled;
     public boolean randomMode;
@@ -514,13 +559,12 @@ public class MainActivity
     }
     try {
       byte[] buffer = new byte[32];
-      int length = btSocket.getInputStream().read();
-      int read = 0;
-      int last_read;
-      while (read < length) {
-        last_read = btSocket.getInputStream().read(buffer, read, length - read);
-        read += last_read;
+      InputStream in = btSocket.getInputStream();
+      int length = readLengthPrefix(in);
+      if (length < 8 || length > buffer.length) {
+        throw new IOException("Malformed state response of length " + length);
       }
+      readFully(in, buffer, length);
 
       CurrentState s = new CurrentState();
       s.enabled = buffer[1] == '1';
